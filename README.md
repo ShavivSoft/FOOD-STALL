@@ -19,7 +19,7 @@ It's hosted on GitHub Pages (static), and the data is in Supabase (free plan).
 - [x] GitHub Pages turned on (Settings → Pages → `main` / root)
 - [x] Supabase publishable key (`sb_publishable_…`) added to `config.js`
 - [x] `supabase/setup.sql` run in the Supabase SQL Editor
-- [ ] Admin user created and email added to `admins` (STEP 2 in setup.sql)
+- [x] Admin user created and email added to `admins` (STEP 2 in setup.sql)
 - [ ] Push notifications: `notify-ready` edge function and VAPID secrets (optional)
 
 ## One-time setup
