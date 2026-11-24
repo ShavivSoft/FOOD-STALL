@@ -4,10 +4,23 @@ The customer scans a QR code and orders **Chicken Burger with Cheese (₹120)** 
 They get a **token number, the total to pay and the item count**. The token manager marks **PAID → PREPARING → READY → DELIVERED**.
 On READY, the customer's phone shows a full-screen popup and gets a push notification.
 
-- **Customer page:** `https://shavivsoft.github.io/FOOD-STALL/`
-- **Token manager:** `https://shavivsoft.github.io/FOOD-STALL/admin.html`
+## 🔗 Live links
+| | |
+|---|---|
+| 🍔 Customer page (put this in the QR) | https://shavivsoft.github.io/FOOD-STALL/ |
+| 🧑‍🍳 Token manager | https://shavivsoft.github.io/FOOD-STALL/admin.html |
+| 🗄️ Supabase project | https://supabase.com/dashboard/project/vyfbyihamirthdftkfxg |
 
-It's hosted on GitHub Pages, and the data is in Supabase (free plan).
+It's hosted on GitHub Pages (static), and the data is in Supabase (free plan).
+
+## ✅ Setup status
+- [x] Code pushed to GitHub
+- [x] Supabase project URL set in `config.js`
+- [ ] GitHub Pages turned on (Settings → Pages → `main` / root)
+- [ ] Supabase publishable key (`sb_publishable_…`) added to `config.js`
+- [ ] `supabase/setup.sql` run in the Supabase SQL Editor
+- [ ] Admin user created and email added to `admins` (STEP 2 in setup.sql)
+- [ ] Push notifications: `notify-ready` edge function and VAPID secrets (optional)
 
 ## One-time setup
 
@@ -21,8 +34,8 @@ It's hosted on GitHub Pages, and the data is in Supabase (free plan).
 4. Go to **Authentication → Sign In / Providers** and turn **off** "Allow new users to sign up".
 
 ### 2. Website config
-Edit [`config.js`](config.js) and fill in `SUPABASE_URL` and `SUPABASE_ANON_KEY` from **Project Settings → API**.
-The anon key is meant to be public. **Never** put the `service_role` key here.
+Edit [`config.js`](config.js): `SUPABASE_URL` is already set. Put the **publishable** key (`sb_publishable_…`, from **Project Settings → API Keys**) in `SUPABASE_ANON_KEY`.
+The publishable key is meant to be public. **Never** put the secret key (`sb_secret_…`) or `service_role` key here.
 
 ### 3. Push notifications (optional — the live page and popup work without this)
 1. Go to **Edge Functions → Deploy a new function → Via Editor**. Name it `notify-ready`, paste [`supabase/functions/notify-ready/index.ts`](supabase/functions/notify-ready/index.ts), and deploy.
