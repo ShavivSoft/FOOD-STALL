@@ -53,5 +53,6 @@ Go to repo **Settings → Pages → Source: Deploy from a branch → `main` / ro
 - **Orders paused** stops new orders. **Settings** changes names and prices; new prices only apply to new orders.
 - Tokens restart at #1 every day (India time) and never repeat within a day. **History** shows past days.
 - Tapping READY again on a ready order sends the notification again.
+- **Reset day** (top bar) permanently deletes all orders for the day you're viewing and restarts tokens at #1. You have to type RESET to confirm. Use it to clear test orders.
 - iPhone push needs iOS 16.4+ with the site added to the Home Screen. Without that, the customer keeps the page open and it updates on its own every few seconds.
 - Free Supabase projects pause after **7 days with no activity**. If the stall has a break, open the dashboard once a week or click **Restore** in Supabase before you open.

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1c1917">
 <title>Token Manager</title>
-<script src="config.js?v=2"></script>
+<script src="config.js?v=3"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
@@ -92,6 +92,7 @@
     <button id="qrBtn">QR code</button>
     <button id="histBtn">History</button>
     <button id="setBtn">Settings</button>
+    <button id="resetBtn" style="background:#7f1d1d">Reset day</button>
     <button id="outBtn">Log out</button>
   </div>
   <main>
@@ -354,6 +355,15 @@ $('sSave').onclick = async () => {
     if (error) return toast('Saved, but password: ' + error.message);
   }
   closeM(); toast('Saved');
+};
+$('resetBtn').onclick = async () => {
+  const n = orders.size, label = viewDate === todayStr ? `today (${viewDate})` : viewDate;
+  const typed = prompt(`This permanently deletes all ${n} order(s) for ${label}, clears its revenue, and restarts tokens at #1.\n\nType RESET to confirm.`);
+  if (typed === null) return;
+  if (typed.trim().toUpperCase() !== 'RESET') return toast('Not reset — you must type RESET');
+  const { data, error } = await sb.rpc('admin_reset_day', { p_day: viewDate });
+  if (error) return toast(error.message.includes('admin_reset_day') ? 'Run the new reset SQL in Supabase first' : error.message);
+  await load(viewDate); toast(`Reset done — ${data} order(s) deleted`);
 };
 $('histBtn').onclick = async () => {
   const { data, error } = await sb.rpc('admin_history');

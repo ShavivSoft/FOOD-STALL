@@ -132,12 +132,26 @@ begin
     from public.orders o group by o.day order by o.day desc limit 365;
 end $$;
 
+create or replace function public.admin_reset_day(p_day date default null) returns int
+language plpgsql security definer set search_path = public as $$
+declare d date; n int;
+begin
+  if not public.is_admin() then raise exception 'not allowed'; end if;
+  d := coalesce(p_day, (now() at time zone (select tz from public.settings where id = 1))::date);
+  delete from public.orders where day = d;          -- push subscriptions go with them
+  get diagnostics n = row_count;
+  delete from public.counters where day = d;        -- next order that day is token #1 again
+  return n;
+end $$;
+
 revoke all on function public.order_json(public.orders) from public, anon, authenticated;
 grant execute on function public.place_order(int, int)       to anon, authenticated;
 grant execute on function public.get_order(text)             to anon, authenticated;
 grant execute on function public.save_push(text, text, jsonb) to anon, authenticated;
 grant execute on function public.is_admin()                  to anon, authenticated;
 grant execute on function public.admin_history()             to authenticated;
+revoke all on function public.admin_reset_day(date) from public, anon;
+grant execute on function public.admin_reset_day(date)       to authenticated;
 
 -- ---------- live updates for the admin dashboard ----------
 do $$ begin
