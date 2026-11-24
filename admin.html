@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1c1917">
+<title>Token Manager</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+  :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;
+    --new:#f97316;--prep:#2563eb;--ready:#16a34a;--done:#6b7280;--unpaid:#dc2626;--paid:#16a34a}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  button{font:inherit;cursor:pointer}
+  .top{position:sticky;top:0;z-index:5;background:#1c1917;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .top h1{font-size:19px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top button{background:#ffffff1a;color:#fff;border:0;border-radius:10px;padding:9px 12px;font-weight:600}
+  .top .open{background:#16a34a}.top .shut{background:#dc2626}
+  .live{width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block}
+  .live.on{background:#22c55e}
+  main{padding:14px 16px 40px;max-width:1400px;margin:0 auto}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .stat{background:var(--card);border-radius:14px;padding:12px 14px;border-left:6px solid #d6d3d1}
+  .stat span{color:var(--mute);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .stat b{display:block;font-size:28px;margin-top:2px}
+  .stat small{color:var(--mute)}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}
+  .chip{border:2px solid #e7e5e4;background:#fff;border-radius:999px;padding:8px 14px;font-weight:700}
+  .chip.on{background:#1c1917;color:#fff;border-color:#1c1917}
+  .chip i{font-style:normal;opacity:.65;margin-left:4px}
+  .tools input{padding:10px 12px;border:2px solid #e7e5e4;border-radius:12px;font-size:16px;width:140px}
+  .spacer{flex:1}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  .o{background:var(--card);border-radius:16px;padding:14px;border-top:8px solid var(--c);box-shadow:0 1px 4px #0000000f;position:relative}
+  .o.flash{animation:flash 1s 3}
+  .o.READY{box-shadow:0 0 0 3px var(--ready)}
+  .o.DELIVERED{opacity:.6}
+  @keyframes flash{50%{background:#fff7ed}}
+  .o-head{display:flex;justify-content:space-between;align-items:flex-start}
+  .o-tok{font-size:44px;font-weight:900;line-height:1}
+  .o-time{color:var(--mute);font-size:13px;text-align:right}
+  .o-items{margin:10px 0;font-size:17px;line-height:1.5}
+  .o-items b{font-size:20px}
+  .o-total{display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--mute)}
+  .o-total b{font-size:26px;color:var(--ink)}
+  .pills{display:flex;gap:6px;margin:10px 0}
+  .pill{color:#fff;border-radius:999px;padding:4px 10px;font-weight:800;font-size:13px}
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acts button{border:0;border-radius:12px;padding:14px 6px;font-weight:800;font-size:15px;color:#fff;background:#d6d3d1}
+  .acts .pay{grid-column:1/-1}
+  .acts button.cur{outline:3px solid #1c1917;outline-offset:1px}
+  .acts .b-paid{background:var(--paid)} .acts .b-unpaid{background:var(--unpaid)}
+  .acts .b-prep{background:var(--prep)} .acts .b-ready{background:var(--ready)} .acts .b-done{background:var(--done)} .acts .b-new{background:var(--new)}
+  .empty{text-align:center;color:var(--mute);padding:50px 0;font-size:18px}
+  .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  .modal.show{display:flex}
+  .box{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow:auto}
+  .box h2{margin:0 0 14px}
+  .box label{display:block;font-weight:600;margin:10px 0 4px}
+  .box input{width:100%;padding:11px;border:2px solid #e7e5e4;border-radius:10px;font-size:16px}
+  .row2{display:grid;grid-template-columns:1fr 110px;gap:8px}
+  .box .btns{display:flex;gap:8px;margin-top:16px}
+  .box .btns button{flex:1;padding:12px;border-radius:12px;border:0;font-weight:700;background:#e7e5e4}
+  .box .btns .pri{background:#1c1917;color:#fff}
+  .login{max-width:340px;margin:12vh auto;background:#fff;border-radius:18px;padding:24px}
+  .login input{width:100%;padding:14px;font-size:18px;border:2px solid #e7e5e4;border-radius:12px;margin:10px 0}
+  .login button{width:100%;padding:14px;font-size:18px;border:0;border-radius:12px;background:#1c1917;color:#fff;font-weight:700}
+  .err{color:#b91c1c;min-height:20px}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1c1917;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;display:none;z-index:30}
+  table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #f5f5f4;text-align:left}
+  td a{color:#2563eb;font-weight:700;cursor:pointer}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="login" class="login hidden">
+  <h2 style="margin-top:0">Token Manager</h2>
+  <input id="em" type="email" placeholder="Email" autocomplete="username">
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <div class="err" id="lerr"></div>
+  <button id="lbtn">Log in</button>
+</div>
+
+<div id="app" class="hidden">
+  <div class="top">
+    <span class="live" id="live" title="Live connection"></span>
+    <h1 id="title">Token Manager</h1>
+    <button id="openBtn" class="open">● Taking orders</button>
+    <button id="soundBtn">🔔 Sound on</button>
+    <button id="qrBtn">QR code</button>
+    <button id="histBtn">History</button>
+    <button id="setBtn">Settings</button>
+    <button id="outBtn">Log out</button>
+  </div>
+  <main>
+    <div id="dayNote" class="hidden" style="background:#fef3c7;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-weight:600"></div>
+    <div class="stats" id="stats"></div>
+    <div class="tools">
+      <div id="chips" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <span class="spacer"></span>
+      <input id="search" type="search" inputmode="numeric" placeholder="Token #">
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<div class="modal" id="mSet"><div class="box">
+  <h2>Settings</h2>
+  <label>Stall name</label><input id="sName">
+  <label>Item 1 name / price (₹)</label><div class="row2"><input id="sCN"><input id="sCP" type="number" min="0" step="1"></div>
+  <label>Item 2 name / price (₹)</label><div class="row2"><input id="sPN"><input id="sPP" type="number" min="0" step="1"></div>
+  <label>New login password (optional)</label><input id="sPw" type="password" placeholder="Leave blank to keep">
+  <p style="color:var(--mute);font-size:13px">Price changes apply to new orders only.</p>
+  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="sSave">Save</button></div>
+</div></div>
+
+<div class="modal" id="mQR"><div class="box" style="text-align:center">
+  <h2>Scan to order</h2>
+  <div id="qrBox" style="width:100%;max-width:340px;margin:0 auto"></div>
+  <p id="qrUrl" style="font-weight:700;word-break:break-all"></p>
+  <div class="btns"><button onclick="closeM()">Close</button><button class="pri" id="qrPrint">Print</button></div>
+</div></div>
+
+<div class="modal" id="mHist"><div class="box">
+  <h2>Order history</h2>
+  <table><thead><tr><th>Date</th><th>Orders</th><th>Paid revenue</th></tr></thead><tbody id="hBody"></tbody></table>
+  <div class="btns"><button onclick="closeM()">Close</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const rupee = (n) => '₹' + (Math.round(Number(n) * 100) / 100).toLocaleString('en-IN');
+const C = { NEW: 'var(--new)', PREPARING: 'var(--prep)', READY: 'var(--ready)', DELIVERED: 'var(--done)', PAID: 'var(--paid)', NOT_PAID: 'var(--unpaid)' };
+const CFG = window.STALL_CONFIG;
+const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+const SITE = location.href.split(/[?#]/)[0].replace(/admin\.html$/, ''); // customer page URL
+let orders = new Map(), pushOn = new Set(), settings = {}, viewDate = null, todayStr = null, filter = 'ACTIVE', chan = null;
+let sound = localStorage.getItem('adm-sound') !== '0';
+const flashIds = new Set();
+
+function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
+const norm = (r) => ({
+  id: r.id, token: r.token, date: r.day, cheese: r.cheese, plain: r.plain, totalItems: r.total_items,
+  total: Number(r.total), payment: r.payment, status: r.status, createdAt: r.created_at, readyAt: r.ready_at,
+});
+const normSettings = (s) => ({ stallName: s.stall_name, cheeseName: s.cheese_name, cheesePrice: Number(s.cheese_price),
+  plainName: s.plain_name, plainPrice: Number(s.plain_price), open: s.is_open, tz: s.tz });
+const dayIn = (tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Asia/Kolkata' }).format(new Date());
+
+// ---------- login ----------
+function showLogin(msg) { $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('lerr').textContent = msg || ''; if (chan) { sb.removeChannel(chan); chan = null; } }
+$('lbtn').onclick = async () => {
+  $('lerr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('em').value.trim(), password: $('pw').value });
+  if (error) return $('lerr').textContent = error.message;
+  $('pw').value = ''; start();
+};
+$('pw').onkeydown = (e) => e.key === 'Enter' && $('lbtn').click();
+$('outBtn').onclick = async () => { await sb.auth.signOut(); showLogin(); };
+
+// ---------- sound ----------
+let actx;
+document.addEventListener('pointerdown', () => { try { actx = actx || new AudioContext(); actx.resume(); } catch {} });
+function beep(kind) {
+  if (!sound || !actx) return;
+  const notes = kind === 'new' ? [660, 880] : [880];
+  notes.forEach((f, i) => {
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.18;
+    o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.3);
+  });
+}
+function paintSound() { $('soundBtn').textContent = sound ? '🔔 Sound on' : '🔕 Sound off'; }
+$('soundBtn').onclick = () => { sound = !sound; localStorage.setItem('adm-sound', sound ? '1' : '0'); paintSound(); };
+
+// ---------- data ----------
+async function load(date) {
+  const s = await sb.from('settings').select('*').single();
+  if (s.error) throw s.error;
+  settings = normSettings(s.data);
+  todayStr = dayIn(settings.tz);
+  viewDate = date || todayStr;
+  const r = await sb.from('orders').select('*').eq('day', viewDate).order('token', { ascending: true }).limit(2000);
+  if (r.error) throw r.error;
+  orders = new Map(r.data.map((x) => [x.id, norm(x)]));
+  pushOn = new Set();
+  if (r.data.length) {
+    const p = await sb.from('push_subs').select('order_id').in('order_id', r.data.map((x) => x.id));
+    (p.data || []).forEach((x) => pushOn.add(x.order_id));
+  }
+  $('app').classList.remove('hidden'); $('login').classList.add('hidden');
+  paintTop(); render();
+}
+function connect() {
+  if (chan) sb.removeChannel(chan);
+  chan = sb.channel('orders-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (p) => {
+      if (!p.new || !p.new.id) return;
+      const o = norm(p.new);
+      if (o.date !== viewDate) { if (o.date === todayStr && viewDate !== todayStr && p.eventType === 'INSERT') toast(`New order #${o.token} today`); return; }
+      const isNew = !orders.has(o.id);
+      orders.set(o.id, o);
+      if (isNew) { flashIds.add(o.id); beep('new'); }
+      render();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'push_subs' }, (p) => {
+      if (p.new && orders.has(p.new.order_id)) { pushOn.add(p.new.order_id); render(); }
+    })
+    .subscribe((status) => {
+      $('live').classList.toggle('on', status === 'SUBSCRIBED');
+      if (status === 'SUBSCRIBED' && viewDate === todayStr) load(viewDate).catch(() => {}); // resync after reconnect
+    });
+}
+// safety net: resync every 20s and roll over at midnight
+setInterval(() => {
+  if (!settings.tz || $('app').classList.contains('hidden')) return;
+  const t = dayIn(settings.tz);
+  if (viewDate === todayStr) load(t !== todayStr ? t : viewDate).catch(() => {});
+}, 20000);
+
+async function start() {
+  paintSound();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return showLogin();
+  const { data: ok } = await sb.rpc('is_admin');
+  if (!ok) { await sb.auth.signOut(); return showLogin('This account is not a token manager. Add its email to the admins table.'); }
+  await load(); connect();
+}
+
+function paintTop() {
+  $('title').textContent = settings.stallName + ' · Tokens';
+  const ob = $('openBtn');
+  ob.textContent = settings.open ? '● Taking orders' : '■ Orders paused';
+  ob.className = settings.open ? 'open' : 'shut';
+  const note = $('dayNote');
+  note.classList.toggle('hidden', viewDate === todayStr);
+  note.innerHTML = `Viewing history for <b>${viewDate}</b> · <a href="#" onclick="load();return false">Back to today</a>`;
+  $('qrUrl').textContent = SITE;
+}
+async function saveSettings(patch) {
+  const { data, error } = await sb.from('settings').update(patch).eq('id', 1).select().single();
+  if (error) { toast(error.message); return false; }
+  settings = normSettings(data); paintTop(); render(); return true;
+}
+$('openBtn').onclick = () => saveSettings({ is_open: !settings.open });
+
+// ---------- render ----------
+const FILTERS = [
+  ['ACTIVE', 'Active', (o) => o.status !== 'DELIVERED'],
+  ['NEW', 'New', (o) => o.status === 'NEW'],
+  ['PREPARING', 'Preparing', (o) => o.status === 'PREPARING'],
+  ['READY', 'Ready', (o) => o.status === 'READY'],
+  ['DELIVERED', 'Delivered', (o) => o.status === 'DELIVERED'],
+  ['NOT_PAID', 'Not paid', (o) => o.payment === 'NOT_PAID' && o.status !== 'DELIVERED'],
+  ['ALL', 'All', () => true],
+];
+function render() {
+  const all = [...orders.values()];
+  const cnt = (f) => all.filter(f).length;
+  const unpaid = all.filter((o) => o.payment === 'NOT_PAID');
+  const revenue = all.filter((o) => o.payment === 'PAID').reduce((s, o) => s + o.total, 0);
+  const items = all.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain }), { c: 0, p: 0 });
+  $('stats').innerHTML = [
+    ['Total orders', all.length, '#1c1917', `🧀 ${items.c} with cheese · ${items.p} without`],
+    ['New', cnt((o) => o.status === 'NEW'), 'var(--new)'],
+    ['Preparing', cnt((o) => o.status === 'PREPARING'), 'var(--prep)'],
+    ['Ready', cnt((o) => o.status === 'READY'), 'var(--ready)'],
+    ['Delivered', cnt((o) => o.status === 'DELIVERED'), 'var(--done)'],
+    ['Pending payments', unpaid.length, 'var(--unpaid)', rupee(unpaid.reduce((s, o) => s + o.total, 0))],
+    ['Revenue (paid)', rupee(revenue), 'var(--paid)'],
+  ].map(([l, v, c, s]) => `<div class="stat" style="border-left-color:${c}"><span>${l}</span><b>${v}</b>${s ? `<small>${s}</small>` : ''}</div>`).join('');
+
+  $('chips').innerHTML = FILTERS.map(([k, l, f]) => `<button class="chip ${filter === k ? 'on' : ''}" data-f="${k}">${l}<i>${cnt(f)}</i></button>`).join('');
+  $('chips').querySelectorAll('.chip').forEach((b) => b.onclick = () => { filter = b.dataset.f; render(); });
+
+  const q = $('search').value.replace(/\D/g, '');
+  const fn = FILTERS.find((f) => f[0] === filter)[2];
+  const list = all.filter((o) => (q ? String(o.token).startsWith(q) : fn(o))).sort((a, b) => b.token - a.token); // newest first
+  $('grid').innerHTML = list.length ? list.map(card).join('') : `<div class="empty">No orders here${q ? ' for #' + q : ''}.</div>`;
+  flashIds.clear();
+}
+function card(o) {
+  const t = new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const ago = Math.max(0, Math.round((Date.now() - new Date(o.createdAt)) / 60000));
+  const lines = [];
+  if (o.cheese) lines.push(`<b>${o.cheese}</b> × ${settings.cheeseName}`);
+  if (o.plain) lines.push(`<b>${o.plain}</b> × ${settings.plainName}`);
+  const btn = (act, cls, label, cur) => `<button class="${cls} ${cur ? 'cur' : ''}" onclick="act('${o.id}','${act}')">${label}</button>`;
+  return `<div class="o ${o.status} ${flashIds.has(o.id) ? 'flash' : ''}" style="--c:${C[o.status]}">
+    <div class="o-head"><div class="o-tok">#${o.token}</div>
+      <div class="o-time">${t}<br>${viewDate === todayStr && o.status !== 'DELIVERED' ? ago + ' min ago' : ''}${pushOn.has(o.id) ? '<br>🔔 push on' : ''}</div></div>
+    <div class="o-items">${lines.join('<br>')}</div>
+    <div class="o-total"><span>${o.totalItems} item${o.totalItems > 1 ? 's' : ''}</span><b>${rupee(o.total)}</b></div>
+    <div class="pills"><span class="pill" style="background:${C[o.payment]}">${o.payment === 'PAID' ? 'PAID' : 'NOT PAID'}</span><span class="pill" style="background:${C[o.status]}">${o.status}</span></div>
+    <div class="acts">
+      ${o.payment === 'PAID' ? btn('unpaid', 'pay b-paid', '✓ PAID (tap to undo)') : btn('paid', 'pay b-unpaid', `MARK PAID · ${rupee(o.total)}`)}
+      ${o.status === 'NEW' ? btn('preparing', 'b-prep', 'PREPARING') : btn('new', 'b-new', '↩ NEW') + btn('preparing', 'b-prep', 'PREPARING', o.status === 'PREPARING')}
+      ${btn('ready', 'b-ready', o.status === 'READY' ? '🔔 NOTIFY AGAIN' : 'READY', o.status === 'READY')}
+      ${btn('delivered', 'b-done', 'DELIVERED', o.status === 'DELIVERED')}
+    </div></div>`;
+}
+async function act(id, action) {
+  const o = orders.get(id), now = new Date().toISOString();
+  if (action === 'delivered' && o.payment !== 'PAID' && !confirm(`Token #${o.token} is NOT PAID. Mark delivered anyway?`)) return;
+  const patch = {
+    paid: { payment: 'PAID', paid_at: now }, unpaid: { payment: 'NOT_PAID', paid_at: null },
+    new: { status: 'NEW' }, preparing: { status: 'PREPARING', preparing_at: now },
+    ready: { status: 'READY', ready_at: now }, delivered: { status: 'DELIVERED', delivered_at: now },
+  }[action];
+  const { data, error } = await sb.from('orders').update(patch).eq('id', id).select().single();
+  if (error) return toast(error.message);
+  orders.set(id, norm(data)); render();
+  if (action === 'ready') {
+    beep();
+    if (!pushOn.has(id)) return toast(`#${o.token} READY — shown on customer screen`);
+    const r = await sb.functions.invoke('notify-ready', { body: { order_id: id, site_url: SITE } });
+    toast(`#${o.token} READY — ` + (r.error ? 'screen updated, push failed' : `push sent to ${r.data.sent} phone(s)`));
+  }
+}
+$('search').oninput = render;
+setInterval(() => viewDate === todayStr && render(), 60000); // refresh "min ago"
+
+// ---------- modals ----------
+function closeM() { document.querySelectorAll('.modal').forEach((m) => m.classList.remove('show')); }
+document.querySelectorAll('.modal').forEach((m) => m.onclick = (e) => e.target === m && closeM());
+$('qrBtn').onclick = () => {
+  const qr = qrcode(0, 'M'); qr.addData(SITE); qr.make();
+  $('qrBox').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+  $('mQR').classList.add('show');
+};
+$('qrPrint').onclick = () => {
+  const w = window.open('', '_blank');
+  w.document.write(`<html><body style="font-family:sans-serif;text-align:center;padding:40px"><h1 style="font-size:48px;margin:0">${settings.stallName}</h1><p style="font-size:28px">🍔 Scan to order</p><div style="width:420px;margin:0 auto">${$('qrBox').innerHTML}</div><p style="font-size:18px">${SITE}</p><script>setTimeout(()=>print(),300)<\/script></body></html>`);
+  w.document.close();
+};
+$('setBtn').onclick = () => {
+  $('sName').value = settings.stallName; $('sCN').value = settings.cheeseName; $('sCP').value = settings.cheesePrice;
+  $('sPN').value = settings.plainName; $('sPP').value = settings.plainPrice; $('sPw').value = '';
+  $('mSet').classList.add('show');
+};
+$('sSave').onclick = async () => {
+  const ok = await saveSettings({
+    stall_name: $('sName').value.trim() || settings.stallName,
+    cheese_name: $('sCN').value.trim() || settings.cheeseName, cheese_price: Math.max(0, Number($('sCP').value) || 0),
+    plain_name: $('sPN').value.trim() || settings.plainName, plain_price: Math.max(0, Number($('sPP').value) || 0),
+  });
+  if (!ok) return;
+  if ($('sPw').value) {
+    const { error } = await sb.auth.updateUser({ password: $('sPw').value });
+    if (error) return toast('Saved, but password: ' + error.message);
+  }
+  closeM(); toast('Saved');
+};
+$('histBtn').onclick = async () => {
+  const { data, error } = await sb.rpc('admin_history');
+  if (error) return toast(error.message);
+  $('hBody').innerHTML = (data || []).map((r) => `<tr><td><a onclick="closeM();load('${r.day}')">${r.day}</a></td><td>${r.orders}</td><td>${rupee(r.revenue)}</td></tr>`).join('') || '<tr><td colspan=3>No orders yet</td></tr>';
+  $('mHist').classList.add('show');
+};
+
+start().catch((e) => showLogin(e.message));
+</script>
+</body>
+</html>
