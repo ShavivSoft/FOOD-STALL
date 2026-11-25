@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Order</title>
-<script src="config.js?v=4"></script>
+<script src="config.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{--bg:#fff7ed;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#f97316;--brand2:#ea580c;
@@ -335,14 +335,15 @@ function setupNotifyUI() {
   if (Notification.permission === 'denied') { btn.classList.add('hidden'); msg.textContent = 'Notifications are blocked. Keep this page open — it updates live.'; return; }
   if (Notification.permission === 'granted' && localStorage.getItem('sub-' + key)) { btn.classList.add('hidden'); msg.textContent = '🔔 Notifications on — you can close this page, your phone will alert you when your order is ready.'; return; }
   msg.textContent = 'Keep this page open — it updates by itself.';
-  if (Notification.permission === 'granted') subscribe(); // allowed before → just attach this order
-  btn.onclick = subscribe;
+  btn.onclick = subscribe; // iPhone only allows this from a real tap
+  if (isIOS) { btn.textContent = '🔔 Tap here to turn on alerts'; msg.textContent = 'Tap the button so your phone can alert you when your order is ready.'; }
+  else if (Notification.permission === 'granted') subscribe(); // Android: allowed before → attach this order automatically
 }
 async function subscribe() {
   const btn = $('notify-btn'), msg = $('notify-msg');
   try {
     btn.disabled = true;
-    const perm = await Notification.requestPermission();
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
     if (perm !== 'granted') throw new Error('Permission not given. Keep this page open — it updates live.');
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
@@ -354,7 +355,7 @@ async function subscribe() {
     if (error || !data) throw new Error('Could not turn on notifications.');
     localStorage.setItem('sub-' + key, 1);
     btn.classList.add('hidden'); msg.textContent = '🔔 Notifications on — you can close this page, your phone will alert you when your order is ready.';
-  } catch (e) { btn.disabled = false; msg.textContent = e.message; }
+  } catch (e) { btn.disabled = false; btn.textContent = '🔔 Tap here to turn on alerts'; msg.textContent = e.message || 'Could not turn on alerts — tap to try again.'; }
 }
 
 $('again').onclick = () => { clearTimeout(timer); key = null; current = null; history.pushState({}, '', HOME); showMenu(); };

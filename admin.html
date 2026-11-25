@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1c1917">
 <title>Token Manager</title>
-<script src="config.js?v=4"></script>
+<script src="config.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
@@ -335,7 +335,10 @@ async function act(id, action) {
     beep();
     if (!pushOn.has(id)) return toast(`#${o.token} READY — shown on customer screen`);
     const r = await sb.functions.invoke('notify-ready', { body: { order_id: id, site_url: SITE } });
-    toast(`#${o.token} READY — ` + (r.error ? 'screen updated, push failed' : r.data.sent ? `🔔 alert sent to ${r.data.sent} phone(s)` : 'screen updated (phone did not accept the alert)'));
+    let why = '';
+    if (r.error) { try { why = (await r.error.context.json()).error; } catch { why = r.error.message; } }
+    toast(`#${o.token} READY — ` + (r.error ? `screen updated, push failed (${why})`
+      : r.data.sent ? `🔔 alert sent to ${r.data.sent} phone(s)` : `screen updated, phone refused the alert (code ${(r.data.failed || []).join(', ') || '?'})`));
   }
 }
 $('search').oninput = render;
