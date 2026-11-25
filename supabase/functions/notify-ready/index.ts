@@ -81,7 +81,13 @@ const json = (body: unknown, status = 200) =>
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    // server key: legacy service_role, or the new sb_secret_ key on newer projects
+    let serverKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!serverKey) {
+      try { serverKey = Object.values(JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}'))[0] as string ?? ''; } catch { /* ignore */ }
+    }
+    if (!serverKey) return json({ error: 'no server key available to the function' }, 500);
+    const db = createClient(Deno.env.get('SUPABASE_URL')!, serverKey, {
       auth: { persistSession: false },
     });
 
