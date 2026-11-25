@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1c1917">
 <title>Token Manager</title>
-<script src="config.js?v=3"></script>
+<script src="config.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
@@ -17,7 +17,10 @@
   .top{position:sticky;top:0;z-index:5;background:#1c1917;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .top h1{font-size:19px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .top button{background:#ffffff1a;color:#fff;border:0;border-radius:10px;padding:9px 12px;font-weight:600}
-  .top .open{background:#16a34a}.top .shut{background:#dc2626}
+  .top .open{background:#16a34a;font-size:16px;padding:10px 16px}.top .shut{background:#dc2626;font-size:16px;padding:10px 16px;animation:blink 1.6s infinite}
+  @keyframes blink{50%{opacity:.7}}
+  #pushState{font-size:13px;opacity:.85;white-space:nowrap}
+  .closedNote{background:#fee2e2;color:#991b1b;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-weight:700}
   .live{width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block}
   .live.on{background:#22c55e}
   main{padding:14px 16px 40px;max-width:1400px;margin:0 auto}
@@ -87,7 +90,8 @@
   <div class="top">
     <span class="live" id="live" title="Live connection"></span>
     <h1 id="title">Token Manager</h1>
-    <button id="openBtn" class="open">● Taking orders</button>
+    <button id="openBtn" class="open">🟢 OPEN · tap to close</button>
+    <span id="pushState" title="Phone notifications">🔔 …</span>
     <button id="soundBtn">🔔 Sound on</button>
     <button id="qrBtn">QR code</button>
     <button id="histBtn">History</button>
@@ -96,6 +100,7 @@
     <button id="outBtn">Log out</button>
   </div>
   <main>
+    <div id="closedNote" class="closedNote hidden">🔴 You're CLOSED — customers see "We're closed" and can't order. Tap the red button at the top to open.</div>
     <div id="dayNote" class="hidden" style="background:#fef3c7;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-weight:600"></div>
     <div class="stats" id="stats"></div>
     <div class="tools">
@@ -229,14 +234,15 @@ async function start() {
   if (!session) return showLogin();
   const { data: ok } = await sb.rpc('is_admin');
   if (!ok) { await sb.auth.signOut(); return showLogin('This account is not a token manager. Add its email to the admins table.'); }
-  await load(); connect();
+  await load(); connect(); initPush();
 }
 
 function paintTop() {
   $('title').textContent = settings.stallName + ' · Tokens';
   const ob = $('openBtn');
-  ob.textContent = settings.open ? '● Taking orders' : '■ Orders paused';
+  ob.textContent = settings.open ? '🟢 OPEN · tap to close' : "🔴 WE'RE CLOSED · tap to open";
   ob.className = settings.open ? 'open' : 'shut';
+  $('closedNote').classList.toggle('hidden', settings.open);
   const note = $('dayNote');
   note.classList.toggle('hidden', viewDate === todayStr);
   note.innerHTML = `Viewing history for <b>${viewDate}</b> · <a href="#" onclick="load();return false">Back to today</a>`;
@@ -247,7 +253,17 @@ async function saveSettings(patch) {
   if (error) { toast(error.message); return false; }
   settings = normSettings(data); paintTop(); render(); return true;
 }
-$('openBtn').onclick = () => saveSettings({ is_open: !settings.open });
+$('openBtn').onclick = async () => {
+  if (settings.open && !confirm("Close the stall? Customers will see \"We're closed\" and can't place orders.")) return;
+  if (await saveSettings({ is_open: !settings.open })) toast(settings.open ? '🟢 Open — taking orders' : "🔴 Closed — customers see \"We're closed\"");
+};
+async function initPush() { // creates the push keys on first run; shows whether push works
+  const el = $('pushState');
+  const r = await sb.functions.invoke('notify-ready', { body: { action: 'init' } }).catch((e) => ({ error: e }));
+  const ok = !r.error && r.data && r.data.publicKey;
+  el.textContent = ok ? '🔔 Push on' : '🔕 Push off';
+  el.title = ok ? 'Phones that allowed notifications get an alert on READY, even with the page closed.' : 'The notify-ready function is not deployed yet — see README step 3. The live page + popup still work.';
+}
 
 // ---------- render ----------
 const FILTERS = [
@@ -319,7 +335,7 @@ async function act(id, action) {
     beep();
     if (!pushOn.has(id)) return toast(`#${o.token} READY — shown on customer screen`);
     const r = await sb.functions.invoke('notify-ready', { body: { order_id: id, site_url: SITE } });
-    toast(`#${o.token} READY — ` + (r.error ? 'screen updated, push failed' : `push sent to ${r.data.sent} phone(s)`));
+    toast(`#${o.token} READY — ` + (r.error ? 'screen updated, push failed' : r.data.sent ? `🔔 alert sent to ${r.data.sent} phone(s)` : 'screen updated (phone did not accept the alert)'));
   }
 }
 $('search').oninput = render;

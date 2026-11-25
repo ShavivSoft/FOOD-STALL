@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Order</title>
-<script src="config.js?v=3"></script>
+<script src="config.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{--bg:#fff7ed;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#f97316;--brand2:#ea580c;
@@ -39,7 +39,11 @@
   .center{text-align:center}
   .banner{background:#fef3c7;border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
   .banner a{font-weight:700;color:var(--brand2)}
-  .closed{background:#fee2e2;color:#991b1b;border-radius:14px;padding:14px;text-align:center;font-weight:700}
+  .closed{background:#fff;border:3px solid #dc2626;color:#991b1b;border-radius:20px;padding:34px 18px;text-align:center;margin-top:14px}
+  .closed b{display:block;font-size:30px;margin-bottom:6px}
+  .closed span{font-size:18px;color:#7f1d1d}
+  #menu.is-closed .card,#menu.is-closed #err,#menu.is-closed #ios-tip{display:none}
+  .tip{background:#eff6ff;border-radius:14px;padding:12px 14px;margin-top:10px;font-size:15px;line-height:1.45}
   /* token view */
   .tk-label{font-size:18px;color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
   .tk{font-size:96px;font-weight:900;line-height:1;margin:6px 0;color:var(--brand2)}
@@ -75,7 +79,8 @@
   <!-- MENU -->
   <section id="menu" class="hidden">
     <div id="active"></div>
-    <div id="closed" class="closed hidden">Sorry, we are not taking orders right now.</div>
+    <div id="closed" class="closed hidden"><b>🔴 We're closed</b><span>We're not taking orders right now.<br>Please check back soon!</span></div>
+    <div id="ios-tip" class="tip hidden">📲 <b>iPhone:</b> to get a notification when your food is ready, tap <b>Share</b> → <b>Add to Home Screen</b>, then open <b>Burgers</b> from your home screen and order there.</div>
     <div class="card item">
       <div><h2 id="n-cheese">Cheese</h2><div class="price" id="p-cheese"></div></div>
       <div class="qty"><button data-k="cheese" data-d="-1">−</button><span id="q-cheese">0</span><button class="plus" data-k="cheese" data-d="1">+</button></div>
@@ -137,6 +142,8 @@ const COLORS = { NEW: 'var(--new)', PREPARING: 'var(--prep)', READY: 'var(--read
 const CFG = window.STALL_CONFIG;
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const HOME = location.pathname; // works at /repo/ on GitHub Pages
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let cfg = {}, qty = { cheese: 0, plain: 0 }, current = null, key = null, timer = null;
 
 // ---- sound (unlocked on first tap) ----
@@ -165,13 +172,17 @@ async function fetchOrder(k) {
   return data; // null if not found
 }
 
-async function init() {
-  const { data, error } = await sb.from('settings').select('*').single();
-  if (error) { $('stall').textContent = 'Could not connect'; $('sub').textContent = 'Please refresh in a moment.'; return; }
+function applySettings(data) {
   cfg = {
     stallName: data.stall_name, cheeseName: data.cheese_name, plainName: data.plain_name,
     cheesePrice: Number(data.cheese_price), plainPrice: Number(data.plain_price), open: data.is_open,
+    vapid: data.vapid_public || null,
   };
+}
+async function init() {
+  const { data, error } = await sb.from('settings').select('*').single();
+  if (error) { $('stall').textContent = 'Could not connect'; $('sub').textContent = 'Please refresh in a moment.'; return; }
+  applySettings(data);
   document.title = cfg.stallName;
   $('stall').textContent = cfg.stallName;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -182,13 +193,13 @@ async function init() {
 // ================= MENU =================
 async function showMenu() {
   $('token').classList.add('hidden'); $('menu').classList.remove('hidden'); $('bar').classList.remove('hidden');
-  $('sub').textContent = '🍔 Choose your burgers';
   $('n-cheese').textContent = $('s-cheese-l').textContent = cfg.cheeseName;
   $('n-plain').textContent = $('s-plain-l').textContent = cfg.plainName;
   $('p-cheese').textContent = rupee(cfg.cheesePrice);
   $('p-plain').textContent = rupee(cfg.plainPrice);
-  $('closed').classList.toggle('hidden', cfg.open);
+  paintOpen();
   renderSummary();
+  watchSettings();
   const box = $('active'); box.innerHTML = '';
   for (const k of store.get().slice(0, 3)) {
     try {
@@ -198,6 +209,29 @@ async function showMenu() {
       box.appendChild(d);
     } catch {}
   }
+}
+function paintOpen() {
+  $('closed').classList.toggle('hidden', cfg.open);
+  $('menu').classList.toggle('is-closed', !cfg.open);
+  $('bar').classList.toggle('hidden', !cfg.open || !$('token').classList.contains('hidden'));
+  $('ios-tip').classList.toggle('hidden', !(isIOS && !standalone && cfg.open));
+  $('sub').textContent = cfg.open ? '🍔 Choose your burgers' : '🍔 Scan · Order · Collect';
+}
+let settingsTimer = null;
+function watchSettings() { // open/closed and prices update live while the menu is showing
+  clearInterval(settingsTimer);
+  settingsTimer = setInterval(async () => {
+    if (key || document.visibilityState !== 'visible') return;
+    const { data } = await sb.from('settings').select('*').single();
+    if (!data) return;
+    const before = JSON.stringify(cfg); applySettings(data);
+    if (JSON.stringify(cfg) !== before) {
+      $('n-cheese').textContent = $('s-cheese-l').textContent = cfg.cheeseName;
+      $('n-plain').textContent = $('s-plain-l').textContent = cfg.plainName;
+      $('p-cheese').textContent = rupee(cfg.cheesePrice); $('p-plain').textContent = rupee(cfg.plainPrice);
+      paintOpen(); renderSummary();
+    }
+  }, 15000);
 }
 document.querySelectorAll('.qty button').forEach((b) => b.onclick = () => {
   const k = b.dataset.k; qty[k] = Math.max(0, Math.min(20, qty[k] + Number(b.dataset.d))); renderSummary();
@@ -213,9 +247,13 @@ function renderSummary() {
 }
 $('place').onclick = async () => {
   $('place').disabled = true; $('err').textContent = '';
+  // ask for notification permission right in the tap (browsers only allow the prompt from a tap)
+  let permAsk = null;
+  if (pushSupported() && cfg.vapid && Notification.permission === 'default') permAsk = Notification.requestPermission().catch(() => null);
   try {
     const { data, error } = await sb.rpc('place_order', { p_cheese: qty.cheese, p_plain: qty.plain });
-    if (error) throw new Error(error.message || 'Could not place order');
+    if (error) throw new Error(error.message.includes('not taking orders') ? "Sorry, we're closed right now." : (error.message || 'Could not place order'));
+    if (permAsk) await permAsk;
     store.add(data.key);
     history.pushState({}, '', '?t=' + data.key);
     qty = { cheese: 0, plain: 0 };
@@ -225,7 +263,7 @@ $('place').onclick = async () => {
 
 // ================= TOKEN =================
 function showToken(k, initial) {
-  key = k; store.add(k);
+  key = k; store.add(k); clearInterval(settingsTimer);
   $('menu').classList.add('hidden'); $('bar').classList.add('hidden'); $('token').classList.remove('hidden');
   $('sub').textContent = 'Show this token at the counter';
   if (initial) render(initial);
@@ -281,22 +319,21 @@ function render(o) {
 }
 
 // ---- push notifications ----
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 function b64ToU8(s) { const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, (c) => c.charCodeAt(0)); }
+function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 function setupNotifyUI() {
   const btn = $('notify-btn'), msg = $('notify-msg');
   btn.classList.remove('hidden'); btn.disabled = false;
-  const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-  if (!supported) {
+  if (!pushSupported() || !cfg.vapid) {
     btn.classList.add('hidden');
     msg.textContent = isIOS && !standalone
       ? 'iPhone: tap Share → "Add to Home Screen" and open from there to get notifications. Or just keep this page open.'
       : 'Keep this page open — it updates by itself and will pop up when your order is ready.';
+    if (!cfg.vapid && pushSupported()) msg.textContent = 'Keep this page open — it updates by itself and will pop up when your order is ready.';
     return;
   }
   if (Notification.permission === 'denied') { btn.classList.add('hidden'); msg.textContent = 'Notifications are blocked. Keep this page open — it updates live.'; return; }
-  if (Notification.permission === 'granted' && localStorage.getItem('sub-' + key)) { btn.classList.add('hidden'); msg.textContent = '🔔 You will get a notification when your order is ready.'; return; }
+  if (Notification.permission === 'granted' && localStorage.getItem('sub-' + key)) { btn.classList.add('hidden'); msg.textContent = '🔔 Notifications on — you can close this page, your phone will alert you when your order is ready.'; return; }
   msg.textContent = 'Keep this page open — it updates by itself.';
   if (Notification.permission === 'granted') subscribe(); // allowed before → just attach this order
   btn.onclick = subscribe;
@@ -309,12 +346,14 @@ async function subscribe() {
     if (perm !== 'granted') throw new Error('Permission not given. Keep this page open — it updates live.');
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(CFG.VAPID_PUBLIC_KEY) });
+    if (sub && localStorage.getItem('vapid') !== cfg.vapid) { await sub.unsubscribe().catch(() => {}); sub = null; } // keys changed
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(cfg.vapid) });
+    localStorage.setItem('vapid', cfg.vapid);
     const j = sub.toJSON();
     const { data, error } = await sb.rpc('save_push', { p_key: key, p_endpoint: j.endpoint, p_keys: j.keys });
     if (error || !data) throw new Error('Could not turn on notifications.');
     localStorage.setItem('sub-' + key, 1);
-    btn.classList.add('hidden'); msg.textContent = '🔔 Done! You will get a notification when your order is ready.';
+    btn.classList.add('hidden'); msg.textContent = '🔔 Notifications on — you can close this page, your phone will alert you when your order is ready.';
   } catch (e) { btn.disabled = false; msg.textContent = e.message; }
 }
 

@@ -20,7 +20,7 @@ It's hosted on GitHub Pages (static), and the data is in Supabase (free plan).
 - [x] Supabase publishable key (`sb_publishable_…`) added to `config.js`
 - [x] `supabase/setup.sql` run in the Supabase SQL Editor
 - [x] Admin user created and email added to `admins` (STEP 2 in setup.sql)
-- [ ] Push notifications: `notify-ready` edge function and VAPID secrets (optional)
+- [ ] Push notifications: `update-push-and-closed.sql` run + `notify-ready` function deployed (Verify JWT off)
 
 ## One-time setup
 
@@ -37,22 +37,23 @@ It's hosted on GitHub Pages (static), and the data is in Supabase (free plan).
 Edit [`config.js`](config.js): `SUPABASE_URL` is already set. Put the **publishable** key (`sb_publishable_…`, from **Project Settings → API Keys**) in `SUPABASE_ANON_KEY`.
 The publishable key is meant to be public. **Never** put the secret key (`sb_secret_…`) or `service_role` key here.
 
-### 3. Push notifications (optional — the live page and popup work without this)
-1. Go to **Edge Functions → Deploy a new function → Via Editor**. Name it `notify-ready`, paste [`supabase/functions/notify-ready/index.ts`](supabase/functions/notify-ready/index.ts), and deploy.
-2. Go to **Edge Functions → Secrets** and add:
-   - `VAPID_PUBLIC_KEY`: the same value as in `config.js`
-   - `VAPID_PRIVATE_KEY`: the private key. Keep it secret and never commit it.
-
-   To make a new key pair: `npx web-push generate-vapid-keys`. Then update both `config.js` and the secrets.
+### 3. Push notifications (alerts the customer's phone even after they close the page)
+1. Go to **SQL Editor** and run [`supabase/update-push-and-closed.sql`](supabase/update-push-and-closed.sql). Fresh installs already have this in `setup.sql`.
+2. Go to **Edge Functions → Deploy a new function → Via Editor**. Name it **`notify-ready`**, paste [`supabase/functions/notify-ready/index.ts`](supabase/functions/notify-ready/index.ts), and deploy.
+3. Open the function's **Details / Settings** and turn **Verify JWT OFF**. The function checks the admin login itself.
+4. Open the admin page. The top bar should say **🔔 Push on**. There are no secrets to paste: the push key pair is created inside Supabase the first time.
 
 ### 4. GitHub Pages
 Go to repo **Settings → Pages → Source: Deploy from a branch → `main` / root**.
 
 ## Using it
 - Open `admin.html` and log in. Use **QR code → Print** to make the poster for the counter.
-- **Orders paused** stops new orders. **Settings** changes names and prices; new prices only apply to new orders.
+- **🟢 OPEN / 🔴 WE'RE CLOSED** (top bar) switches the customer page to a big "We're closed" screen and blocks new orders. Phones that already have the page open switch within ~15 seconds. **Settings** changes names and prices; new prices only apply to new orders.
 - Tokens restart at #1 every day (India time) and never repeat within a day. **History** shows past days.
 - Tapping READY again on a ready order sends the notification again.
 - **Reset day** (top bar) permanently deletes all orders for the day you're viewing and restarts tokens at #1. You have to type RESET to confirm. Use it to clear test orders.
-- iPhone push needs iOS 16.4+ with the site added to the Home Screen. Without that, the customer keeps the page open and it updates on its own every few seconds.
+- **Notifications:** when a customer taps **Place order**, the phone asks to allow notifications. If they allow it, tapping READY makes their phone alert them, even if they've closed the page.
+  - **Android (Chrome):** works straight away.
+  - **iPhone:** Apple only allows it for sites added to the Home Screen (iOS 16.4+). The page tells iPhone users to tap Share → Add to Home Screen, open **Burgers** from there and order inside it.
+  - Customers who don't allow notifications still see the READY popup while the page is open.
 - Free Supabase projects pause after **7 days with no activity**. If the stall has a break, open the dashboard once a week or click **Restore** in Supabase before you open.

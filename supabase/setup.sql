@@ -15,6 +15,15 @@ create table if not exists public.settings (
   tz           text    not null default 'Asia/Kolkata'
 );
 insert into public.settings (id) values (1) on conflict do nothing;
+alter table public.settings add column if not exists vapid_public text; -- filled in by the notify-ready function
+
+-- push key pair, created by the notify-ready function on first use; nobody but the server can read it
+create table if not exists public.push_keys (
+  id int primary key default 1 check (id = 1),
+  public_key text not null,
+  private_key text not null,
+  created_at timestamptz not null default now()
+);
 
 create table if not exists public.admins (email text primary key);
 
@@ -59,6 +68,8 @@ alter table public.admins    enable row level security;
 alter table public.counters  enable row level security;
 alter table public.orders    enable row level security;
 alter table public.push_subs enable row level security;
+alter table public.push_keys enable row level security; -- no policies: server only
+revoke all on table public.push_keys from anon, authenticated;
 
 drop policy if exists settings_read  on public.settings;
 drop policy if exists settings_admin on public.settings;
