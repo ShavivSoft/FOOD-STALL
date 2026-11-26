@@ -27,16 +27,19 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
 - **Sold:** 🍔 burgers sold split by type, 🥤 Diet Cokes, 🛍️ parcels and orders. *Sold* means paid and not cancelled.
 - **Right now:** tokens in the kitchen, ready and waiting, and recently delivered.
 - **Every token:** a table with items, parcel, amount, payment method, status, kitchen minutes and delivery minutes, filters, totals and **⬇ CSV** export.
-- **History:** each day's numbers plus an all-time total.
+- **History:** each day's numbers plus an all-time total (saved days included), and a **Saved days** list with a download for each.
 - **🟢 OPEN / 🔴 CLOSED** switch. When closed, intake can't take orders, but kitchen and delivery can finish open tokens.
 - **Settings:** item names and prices, the Diet Coke price, parcel charge (**once per order** or **per burger**), the **staff PINs** and your password.
-- **Reset day** deletes a day's orders (for clearing test orders). You must type RESET.
+- **💾 Save** keeps a copy of the day's orders in History and downloads a report (opens in Excel or Google Sheets). Nothing is cleared, and you can save as often as you like.
+- **Reset day** clears the day's tokens from every screen and restarts at **#1**. You must type RESET. It warns you if any orders aren't saved, and has a **Save now** button. Saved copies are never deleted.
+- **Only the admin** can Save or Reset. The staff screens have no such buttons, and the database refuses them.
 
 ## Setup (already done, except the latest update)
 1. Supabase **SQL Editor**: run these files in order. Each one is safe to run again.
    - [`supabase/setup.sql`](supabase/setup.sql)
    - [`supabase/update-push-and-closed.sql`](supabase/update-push-and-closed.sql)
    - [`supabase/update-3-staff.sql`](supabase/update-3-staff.sql) adds Diet Coke, parcel, cash/UPI, cancel and staff PINs.
+   - [`supabase/update-4-save.sql`](supabase/update-4-save.sql) adds 💾 Save (kept for future reference) and the admin-only Reset.
 2. Create an admin login: **Authentication → Users → Add user** (Auto Confirm). Then run `insert into public.admins (email) values (lower('you@example.com'));` and turn off new sign-ups.
 3. Open Admin → **Settings**. Set the prices and the parcel charge, and give each staff screen a **PIN**.
 4. On each device, open its screen and enter its PIN once. It stays logged in until someone taps **Lock**.

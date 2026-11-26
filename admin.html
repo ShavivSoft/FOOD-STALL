@@ -108,7 +108,7 @@
     <button id="openBtn" class="open">🟢 OPEN · tap to close</button>
     <span class="sp"></span>
     <button id="soundBtn">🔔 Sound on</button>
-    <button id="csvBtn">⬇ CSV</button>
+    <button id="saveBtn" style="background:#15803d;font-weight:800">💾 Save</button>
     <button id="histBtn">History</button>
     <button id="setBtn">Settings</button>
     <button id="resetBtn" class="danger">Reset day</button>
@@ -159,6 +159,8 @@
   <h2>History</h2>
   <p style="margin:-6px 0 10px;color:var(--mute);font-size:13px">Sold = paid orders that weren't cancelled. Tap a date to open that day.</p>
   <div class="tablewrap"><table><thead><tr><th>Date</th><th class="n">Orders</th><th class="n">Cancelled</th><th class="n">🍔 Burgers</th><th class="n">🧀 / plain</th><th class="n">🥤 Coke</th><th class="n">🛍️ Parcels</th><th class="n">Cash</th><th class="n">UPI</th><th class="n">Revenue</th><th class="n">Unpaid</th></tr></thead><tbody id="hBody"></tbody></table></div>
+  <h4>💾 Saved days (kept for future reference)</h4>
+  <div class="tablewrap"><table><thead><tr><th>Day</th><th>Last saved</th><th class="n">Orders</th><th class="n">🍔 Burgers</th><th class="n">🥤 Coke</th><th class="n">Revenue</th><th></th></tr></thead><tbody id="aBody"></tbody></table></div>
   <div class="btns"><button onclick="closeM()">Close</button></div>
 </div></div>
 
@@ -168,7 +170,8 @@
   <label>Type <b>RESET</b> to confirm</label>
   <input type="text" id="rIn" autocomplete="off" autocapitalize="characters" spellcheck="false">
   <div class="err" id="rErr"></div>
-  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="rGo" style="background:#b91c1c">Delete & reset</button></div>
+  <div id="rUnsaved" class="note closed hidden" style="margin-top:10px"></div>
+  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="rGo" style="background:#b91c1c">Reset day</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -411,18 +414,21 @@ async function override(id, sel) {
   orders.set(id, norm(data)); render(); toast(`#${o.token} updated`);
 }
 
-// ---------- CSV ----------
-$('csvBtn').onclick = () => {
+// ---------- save report (CSV opens in Excel / Google Sheets) ----------
+function csvDownload(list, name) {
   const head = ['token', 'date', 'time', 'cheese', 'no_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
   const t = (x) => (x ? new Date(x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
   const r1 = (x) => (x == null ? '' : Math.round(x * 10) / 10);
-  const rows = [...orders.values()].sort((a, b) => a.token - b.token).map((o) => [o.token, o.day, t(o.createdAt), o.cheese, o.plain, o.coke, o.parcel ? 'yes' : 'no', o.parcelAmount, o.total,
+  const rows = [...list].sort((a, b) => a.token - b.token).map((o) => [o.token, o.day, t(o.createdAt), o.cheese, o.plain, o.coke, o.parcel ? 'yes' : 'no', o.parcelAmount, o.total,
     o.payment, o.payMethod || '', o.status, t(o.createdAt), t(o.readyAt), t(o.deliveredAt), r1(minsBetween(o.createdAt, o.readyAt)), r1(minsBetween(o.readyAt, o.deliveredAt))]);
-  const csv = [head, ...rows].map((r) => r.join(',')).join('\n');
+  const s = stats(list);
+  const sum = [[], ['SUMMARY'], ['orders', s.orders], ['cancelled', s.cancelled], ['burgers_sold', s.cheese + s.plain], ['with_cheese', s.cheese], ['no_cheese', s.plain],
+    ['diet_coke', s.coke], ['parcels', s.parcels], ['parcel_charges', s.parcelMoney], ['cash', s.cash], ['upi', s.upi], ['revenue', s.revenue],
+    ['unpaid', s.unpaid.reduce((a, o) => a + o.total, 0)]];
+  const csv = [head, ...rows, ...sum].map((r) => r.join(',')).join('\n');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `burger-bytes-${viewDate}.csv`; a.click();
-};
-
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = name; a.click();
+}
 // ---------- modals ----------
 function closeM() { document.querySelectorAll('.modal').forEach((m) => m.classList.remove('show')); }
 document.querySelectorAll('.modal').forEach((m) => (m.onclick = (e) => e.target === m && closeM()));
@@ -454,34 +460,82 @@ $('sSave').onclick = async () => {
   if ($('sPw').value) { const { error } = await sb.auth.updateUser({ password: $('sPw').value }); if (error) return toast('Saved, but password: ' + error.message); }
   closeM(); toast('Saved'); loadStaff();
 };
-$('resetBtn').onclick = () => {
-  $('rText').innerHTML = `This permanently deletes <b>all ${orders.size} order(s)</b> for <b>${viewDate}</b> — every stage (new, cooking, ready, delivered, cancelled) — and clears them from the counter, kitchen and delivery screens. The next order starts at <b>token #1</b>.`;
+async function savedIds(day) { // which of the day's orders already have a saved copy (and is it up to date?)
+  const { data, error } = await sb.from('order_archive').select('order_id, data').eq('day', day).limit(5000);
+  if (error) return null;
+  return new Map(data.map((r) => [r.order_id, r.data]));
+}
+function unsavedCount(saved) {
+  if (!saved) return null;
+  return [...orders.values()].filter((o) => { const c = saved.get(o.id); return !c || c.status !== o.status || c.payment !== o.payment; }).length;
+}
+// 💾 Save: keep a copy of the day in History (nothing is cleared) + download a report
+async function saveDay(quiet) {
+  if (!orders.size) { toast('No orders to save for ' + viewDate); return true; }
+  const { data, error } = await sb.rpc('admin_save_day', { p_day: viewDate });
+  if (error) { alert('Save failed: ' + (/schema cache|admin_save_day/.test(error.message) ? 'run supabase/update-4-save.sql in Supabase first' : error.message)); return false; }
+  csvDownload([...orders.values()], `burger-bytes-${viewDate}.csv`);
+  if (!quiet) toast(`💾 Saved ${data} order(s) for ${viewDate} — kept in History + report downloaded`);
+  return true;
+}
+$('saveBtn').onclick = () => saveDay(false);
+
+// Reset day: clears every screen and restarts tokens at #1 (admin only). Saved copies stay.
+$('resetBtn').onclick = async () => {
+  $('rText').innerHTML = `Clears <b>all ${orders.size} order(s)</b> for <b>${viewDate}</b> — every stage — from the counter, kitchen and delivery screens. The next order starts at <b>token #1</b>. Saved copies stay in History.`;
   $('rIn').value = ''; $('rErr').textContent = ''; $('rGo').disabled = false;
+  $('rUnsaved').classList.add('hidden');
   $('mReset').classList.add('show'); setTimeout(() => $('rIn').focus(), 50);
+  const n = unsavedCount(await savedIds(viewDate));
+  if (n) {
+    $('rUnsaved').innerHTML = `⚠️ ${n} order(s) are NOT saved — they will be gone after reset. <button class="fchip" style="margin-left:6px" onclick="saveDay(false).then(() => $('resetBtn').onclick())">💾 Save now</button>`;
+    $('rUnsaved').classList.remove('hidden');
+  }
 };
 $('rIn').onkeydown = (e) => e.key === 'Enter' && $('rGo').click();
 $('rGo').onclick = async () => {
-  if ($('rIn').value.trim().toUpperCase() !== 'RESET') return ($('rErr').textContent = 'Type RESET exactly');
+  if ($('rIn').value.trim().toUpperCase() !== 'RESET') return ($('rErr').textContent = 'Type RESET first');
+  const n = unsavedCount(await savedIds(viewDate));
+  if (n && !confirm(`${n} order(s) are not saved and will be gone for good. Reset anyway?`)) return;
   $('rGo').disabled = true; $('rErr').textContent = 'Resetting…';
-  const { data, error } = await sb.rpc('admin_reset_day', { p_day: viewDate });
-  if (error) { $('rGo').disabled = false; return ($('rErr').textContent = 'Reset failed: ' + error.message + (error.hint ? ' — ' + error.hint : '')); }
-  await load(viewDate);
-  if (orders.size) { $('rGo').disabled = false; return ($('rErr').textContent = `Deleted ${data}, but ${orders.size} still showing — screenshot this and send it to Claude.`); }
-  closeM(); toast(`✅ Reset done — ${data} order(s) deleted. Next token is #1.`);
+  const day = viewDate;
+  const { data, error } = await sb.rpc('admin_reset_day', { p_day: day });
+  if (error) { $('rGo').disabled = false; return ($('rErr').textContent = 'Reset failed: ' + error.message); }
+  await load(day);
+  if (orders.size) { $('rGo').disabled = false; return ($('rErr').textContent = `Deleted ${data}, but ${orders.size} still showing — send Claude a screenshot.`); }
+  closeM(); toast(`✅ Reset done — ${data} order(s) cleared. Next token is #1.`);
 };
-$('histBtn').onclick = async () => {
-  $('hBody').innerHTML = '<tr><td colspan="11">Loading…</td></tr>'; $('mHist').classList.add('show');
-  const rows = [];
+
+let savedDays = new Map();
+async function readAll(build) { // pages through every row, 1000 at a time
+  const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from('orders').select('*').order('day', { ascending: false }).range(from, from + 999);
-    if (error) return toast(error.message);
-    rows.push(...data.map(norm)); if (data.length < 1000) break;
+    const { data, error } = await build().range(from, from + 999);
+    if (error) return { error };
+    out.push(...data); if (data.length < 1000) break;
   }
+  return { data: out };
+}
+$('histBtn').onclick = async () => {
+  $('hBody').innerHTML = '<tr><td colspan="11">Loading…</td></tr>'; $('aBody').innerHTML = ''; $('mHist').classList.add('show');
+  const live = await readAll(() => sb.from('orders').select('*').order('day', { ascending: false }));
+  if (live.error) return toast(live.error.message);
+  const arch = await readAll(() => sb.from('order_archive').select('*').order('day', { ascending: false }));
+  const saved = arch.error ? [] : arch.data.map((a) => ({ ...norm(a.data), savedAt: a.saved_at }));
+  const liveRows = live.data.map(norm), liveIds = new Set(liveRows.map((o) => o.id));
+  const rows = [...liveRows, ...saved.filter((o) => !liveIds.has(o.id))]; // each order once: live copy wins
   const byDay = new Map();
   for (const o of rows) { if (!byDay.has(o.day)) byDay.set(o.day, []); byDay.get(o.day).push(o); }
   const line = (label, list, bold) => { const s = stats(list);
     return `<tr${bold ? ' style="font-weight:900;background:#fafaf9"' : ''}><td>${label}</td><td class="n">${s.orders}</td><td class="n">${s.cancelled}</td><td class="n">${s.cheese + s.plain}</td><td class="n">${s.cheese} / ${s.plain}</td><td class="n">${s.coke}</td><td class="n">${s.parcels}</td><td class="n">${rupee(s.cash)}</td><td class="n">${rupee(s.upi)}</td><td class="n"><b>${rupee(s.revenue)}</b></td><td class="n">${s.unpaid.length ? rupee(s.unpaid.reduce((a, o) => a + o.total, 0)) : ''}</td></tr>`; };
-  $('hBody').innerHTML = rows.length ? line('All time', rows, true) + [...byDay].map(([d, l]) => line(`<a href="#" onclick="closeM();load('${d}');return false">${d}</a>`, l)).join('') : '<tr><td colspan="11">No orders yet</td></tr>';
+  $('hBody').innerHTML = rows.length ? line('All time', rows, true) + [...byDay].sort((a, b) => b[0].localeCompare(a[0])).map(([d, l]) => line(`<a href="#" onclick="closeM();load('${d}');return false">${d}</a>`, l)).join('') : '<tr><td colspan="11">No orders yet</td></tr>';
+  savedDays = new Map();
+  for (const o of saved) { if (!savedDays.has(o.day)) savedDays.set(o.day, []); savedDays.get(o.day).push(o); }
+  $('aBody').innerHTML = arch.error ? `<tr><td colspan="7" style="color:var(--mute)">Run supabase/update-4-save.sql in Supabase to use 💾 Save.</td></tr>`
+    : savedDays.size ? [...savedDays].map(([day, l]) => { const s = stats(l), last = l.reduce((m, o) => (o.savedAt > m ? o.savedAt : m), '');
+        return `<tr><td>${day}</td><td>${new Date(last).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td><td class="n">${s.orders}</td><td class="n">${s.cheese + s.plain}</td><td class="n">${s.coke}</td><td class="n"><b>${rupee(s.revenue)}</b></td>
+          <td><button class="fchip" onclick="csvDownload(savedDays.get('${day}'), 'burger-bytes-${day}-saved.csv')">⬇ Download</button></td></tr>`; }).join('')
+    : '<tr><td colspan="7" style="color:var(--mute)">Nothing saved yet — tap 💾 Save on the dashboard.</td></tr>';
 };
 
 start().catch((e) => showLogin(e.message));
