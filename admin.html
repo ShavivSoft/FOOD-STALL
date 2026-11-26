@@ -341,12 +341,11 @@ async function act(id, action) {
   orders.set(id, norm(data)); render();
   if (action === 'ready') {
     beep();
-    if (!pushOn.has(id)) return toast(`#${o.token} READY — shown on customer screen`);
     const r = await sb.functions.invoke('notify-ready', { body: { order_id: id, site_url: SITE } });
     let why = '';
     if (r.error) { try { why = (await r.error.context.json()).error; } catch { why = r.error.message; } }
     toast(`#${o.token} READY — ` + (r.error ? `screen updated, push failed (${why})`
-      : r.data.sent ? `🔔 alert sent to ${r.data.sent} phone(s)` : `screen updated, phone refused the alert (code ${(r.data.failed || []).join(', ') || '?'})`));
+      : r.data.sent ? `🔔 alert sent to ${r.data.sent} phone(s)` : (r.data.failed && r.data.failed.length) ? `screen updated, phone refused the alert (code ${r.data.failed.join(', ')})` : 'shown on customer screen (no phone turned on alerts for this order)'));
   }
 }
 $('search').oninput = render;

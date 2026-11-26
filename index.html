@@ -150,6 +150,7 @@ const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, { auth
 const HOME = location.pathname; // works at /repo/ on GitHub Pages
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let swReg = null; // ready before any tap, so subscribing can start instantly inside the tap
 let cfg = {}, qty = { cheese: 0, plain: 0 }, current = null, key = null, timer = null;
 
 // ---- sound (unlocked on first tap) ----
@@ -191,7 +192,7 @@ async function init() {
   applySettings(data);
   document.title = cfg.stallName;
   $('stall').textContent = cfg.stallName;
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {});
   const k = new URLSearchParams(location.search).get('t');
   if (k) showToken(k); else showMenu();
 }
@@ -350,12 +351,20 @@ async function subscribe() {
   const btn = $('notify-btn'), msg = $('notify-msg');
   try {
     btn.disabled = true;
-    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
-    if (perm !== 'granted') throw new Error('Permission not given. Keep this page open — it updates live.');
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if (sub && localStorage.getItem('vapid') !== cfg.vapid) { await sub.unsubscribe().catch(() => {}); sub = null; } // keys changed
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(cfg.vapid) });
+    const opts = { userVisibleOnly: true, applicationServerKey: b64ToU8(cfg.vapid) };
+    const reg = swReg || await navigator.serviceWorker.ready;
+    let sub;
+    try {
+      // Subscribe FIRST, still inside the tap: Safari shows the Allow prompt itself here.
+      // (Asking permission first and subscribing after makes iPhone refuse — the tap has "expired".)
+      sub = await reg.pushManager.subscribe(opts);
+    } catch (e) {
+      if (Notification.permission === 'denied') throw new Error('Notifications are blocked for this app. iPhone: Settings → Notifications → Burger Bytes → Allow.');
+      const old = await reg.pushManager.getSubscription(); // made with an older key → replace it
+      if (old) { await old.unsubscribe().catch(() => {}); sub = await reg.pushManager.subscribe(opts); }
+      else if (Notification.permission === 'default' && (await Notification.requestPermission()) === 'granted') sub = await reg.pushManager.subscribe(opts);
+      else throw new Error('Could not turn on alerts (' + (e.message || e.name) + '). Tap to try again.');
+    }
     localStorage.setItem('vapid', cfg.vapid);
     const j = sub.toJSON();
     const { data, error } = await sb.rpc('save_push', { p_key: key, p_endpoint: j.endpoint, p_keys: j.keys });
