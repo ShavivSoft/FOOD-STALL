@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261126223322">
+<meta name="app-version" content="20261127005556">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,13 +29,13 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=20261126223322">
-<script src="config.js?v=20261126223322"></script>
+<link rel="stylesheet" href="staff.css?v=20261127005556">
+<script src="config.js?v=20261127005556"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'kitchen';</script>
-<script src="staff.js?v=20261126223322"></script>
+<script src="staff.js?v=20261127005556"></script>
 <script>
 const fresh = new Set();
 window.onChanges = (next, prev) => {
@@ -56,8 +56,8 @@ window.render = () => {
   $('main').innerHTML = `
     <div class="summary">
       <div>Tokens waiting<b>${queue.length}</b></div>
-      <div>🧀 With cheese to make<b>${todo.c}</b></div>
-      <div>No cheese to make<b>${todo.p}</b></div>
+      <div style="background:#fdb436;color:#422006">🧀 WITH CHEESE to make<b>${todo.c}</b></div>
+      <div style="border:3px dashed #1c1917">WITHOUT CHEESE to make<b>${todo.p}</b></div>
     </div>
     ${queue.length ? `<div class="cards">${queue.map(card).join('')}</div>` : '<div class="empty">✅ All done — no tokens waiting</div>'}
     ${ready.length ? `<div class="strip">Ready, waiting for delivery: ${ready.map((o) =>

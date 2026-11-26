@@ -45,8 +45,12 @@ main{padding:14px;max-width:1500px;margin:0 auto}
 .tk-age{font-size:20px;font-weight:800;color:var(--mute);text-align:right}
 .tk-age.warn{color:#d97706}.tk-age.late{color:#dc2626}
 .lines{display:flex;flex-direction:column;gap:6px}
-.line{display:flex;align-items:baseline;gap:12px;font-size:28px;font-weight:800;line-height:1.1}
+.line{display:flex;align-items:center;gap:14px;font-size:28px;font-weight:800;line-height:1.1}
 .line b{font-size:40px;min-width:56px}
+.line.ch,.line.nc{border-radius:16px;padding:10px 14px;font-size:34px;font-weight:950;letter-spacing:.01em}
+.line.ch b,.line.nc b{font-size:64px;min-width:70px;text-align:center;line-height:1}
+.line.ch{background:#fdb436;color:#422006;border:4px solid #b45309}
+.line.nc{background:#fff;color:#1c1917;border:4px dashed #1c1917}
 .line.coke{font-size:22px;color:#44403c}.line.coke b{font-size:30px}
 .big{width:100%;padding:22px;border-radius:16px;font-size:26px;font-weight:950;color:#fff}
 .b-ready{background:var(--ready)}.b-done{background:var(--done)}.b-prep{background:var(--prep)}.b-deliv{background:#0f766e}
@@ -78,8 +82,8 @@ main{padding:14px;max-width:1500px;margin:0 auto}
 .it .q{min-width:40px;text-align:center;font-size:30px;font-weight:900}
 .tog{width:100%;margin-top:12px;padding:16px;border-radius:14px;font-size:20px;font-weight:900;background:#f5f5f4;color:#57534e;border:3px dashed #d6d3d1}
 .tog.on{background:var(--bun);color:#422006;border:3px solid #b45309}
-.pay{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
-.pay button{padding:16px 4px;border-radius:14px;font-size:18px;font-weight:900;background:#f5f5f4;color:#44403c;border:3px solid transparent}
+.pay{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.pay button{padding:20px 4px;font-size:22px!important;border-radius:14px;font-size:18px;font-weight:900;background:#f5f5f4;color:#44403c;border:3px solid transparent}
 .pay button.on{border-color:#1c1917;background:#1c1917;color:#fff}
 .pay button.on.later{background:var(--unpaid);border-color:var(--unpaid)}
 .tot{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 10px;font-size:20px;font-weight:700}
@@ -107,3 +111,15 @@ main{padding:14px;max-width:1500px;margin:0 auto}
 .tokenpop .sum{font-size:22px;margin:10px 0}
 .tokenpop .amt{font-size:44px;font-weight:950}
 .tokenpop button{margin-top:22px;background:var(--bun);color:#422006;border-radius:18px;padding:18px 40px;font-size:24px;font-weight:950}
+
+.cashbox{margin-top:12px;background:#f0fdf4;border:3px solid #16a34a;border-radius:16px;padding:12px}
+.cashbox label{font-weight:800;color:#166534}
+.givenrow{display:flex;align-items:center;gap:6px;margin:6px 0}
+.givenrow span{font-size:32px;font-weight:900}
+.givenrow input{flex:1;min-width:0;font-size:34px;font-weight:900;padding:8px 12px;border:3px solid #86efac;border-radius:12px}
+.quick{display:flex;flex-wrap:wrap;gap:6px}
+.quick button{flex:1;min-width:70px;padding:12px 6px;border-radius:12px;background:#fff;border:2px solid #86efac;font-size:17px;font-weight:800;color:#166534}
+.change{margin-top:10px;padding:12px;border-radius:12px;text-align:center;font-size:18px;font-weight:800;color:var(--mute);background:#fff}
+.change b{font-size:34px}
+.change.ok{background:#16a34a;color:#fff}
+.change.short{background:#dc2626;color:#fff}

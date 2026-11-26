@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261126223322">
+<meta name="app-version" content="20261127005556">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,17 +29,17 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=20261126223322">
-<script src="config.js?v=20261126223322"></script>
+<link rel="stylesheet" href="staff.css?v=20261127005556">
+<script src="config.js?v=20261127005556"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'intake';</script>
-<script src="staff.js?v=20261126223322"></script>
+<script src="staff.js?v=20261127005556"></script>
 <script>
-const cart = { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null }; // pay: 'CASH' | 'UPI' | 'LATER'
+const cart = { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null, given: 0 }; // pay: 'CASH' | 'UPI'
 let search = '', built = false, placing = false;
-window.canReload = () => !placing && cart.cheese + cart.plain + cart.coke === 0 && !cart.parcel && !document.querySelector('.tokenpop');
+window.canReload = () => !placing && cart.cheese + cart.plain + cart.coke === 0 && !cart.parcel && !cart.pay && !document.querySelector('.tokenpop');
 
 function parcelAmount() {
   if (!cart.parcel) return 0;
@@ -58,7 +58,13 @@ function buildLayout() {
       <div id="items"></div>
       <button class="tog" id="parcelBtn"></button>
       <div class="pay">
-        <button data-p="CASH">💵 CASH</button><button data-p="UPI">📱 UPI</button><button data-p="LATER" class="later">⏳ PAY LATER</button>
+        <button data-p="CASH">💵 CASH</button><button data-p="UPI">📱 UPI</button>
+      </div>
+      <div class="cashbox hidden" id="cashbox">
+        <label for="given">Customer gave</label>
+        <div class="givenrow"><span>₹</span><input id="given" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+        <div class="quick" id="quick"></div>
+        <div class="change" id="change"></div>
       </div>
       <div class="tot"><span id="cnt"></span><b id="total">₹0</b></div>
       <button class="place" id="place">PLACE ORDER</button>
@@ -70,7 +76,12 @@ function buildLayout() {
       <div class="olist" id="list"></div>
     </div>
   </div>`;
-  document.querySelectorAll('.pay button').forEach((b) => b.onclick = () => { cart.pay = b.dataset.p; paintBuilder(); });
+  document.querySelectorAll('.pay button').forEach((b) => b.onclick = () => {
+    cart.pay = b.dataset.p; paintBuilder();
+    if (cart.pay === 'CASH') setTimeout(() => $('given').focus(), 30);
+  });
+  $('given').oninput = (e) => { cart.given = Math.max(0, Number(e.target.value) || 0); paintBuilder(); };
+  $('given').onkeydown = (e) => { if (e.key === 'Enter' && !$('place').disabled) place(); };
   $('parcelBtn').onclick = () => { cart.parcel = !cart.parcel; paintBuilder(); };
   $('place').onclick = place;
   $('q').oninput = (e) => { search = e.target.value.replace(/\D/g, ''); paintList(); };
@@ -88,10 +99,27 @@ function paintBuilder() {
     ? `🛍️ PARCEL ✓  +${rupee(pa)}${S.parcelMode === 'burger' ? ` (${rupee(S.parcelCharge)} × burger)` : ''}`
     : `🛍️ Parcel?  (+${rupee(S.parcelCharge)}${S.parcelMode === 'burger' ? ' per burger' : ''})`;
   document.querySelectorAll('.pay button').forEach((b) => b.classList.toggle('on', b.dataset.p === cart.pay));
+  // cash: what the customer handed over, and the change to give back
+  const total = cartTotal();
+  $('cashbox').classList.toggle('hidden', cart.pay !== 'CASH');
+  if (cart.pay === 'CASH') {
+    const notes = [...new Set([total, ...[50, 100, 200, 500, 2000].filter((x) => x > total)])].filter((x) => x > 0).slice(0, 5);
+    const qk = notes.join(',');
+    if ($('quick').dataset.k !== qk) { // rebuild only when the total changes (keeps taps smooth)
+      $('quick').dataset.k = qk;
+      $('quick').innerHTML = notes.map((x, i) => `<button data-v="${x}">${i === 0 && x === total ? 'Exact ' : ''}${rupee(x)}</button>`).join('');
+      $('quick').querySelectorAll('button').forEach((b) => b.onclick = () => { cart.given = Number(b.dataset.v); $('given').value = cart.given; paintBuilder(); });
+    }
+    const diff = cart.given - total, ch = $('change');
+    ch.className = 'change ' + (!cart.given ? '' : diff >= 0 ? 'ok' : 'short');
+    ch.innerHTML = !cart.given ? 'Type the amount the customer gave'
+      : diff >= 0 ? `GIVE BACK <b>${rupee(diff)}</b>` : `SHORT BY <b>${rupee(-diff)}</b> — ask for more`;
+  }
   const n = cart.cheese + cart.plain + cart.coke;
   $('cnt').textContent = n ? `${n} item${n > 1 ? 's' : ''}` : 'No items';
   $('total').textContent = rupee(cartTotal());
-  const why = !S.isOpen ? 'Stall is closed' : !n ? 'Add items' : !cart.pay ? 'Choose Cash, UPI or Pay later' : '';
+  const why = !S.isOpen ? 'Stall is closed' : !n ? 'Add items' : !cart.pay ? 'Choose Cash or UPI'
+    : cart.pay === 'CASH' && cart.given < total ? (cart.given ? 'Customer gave less than the total' : 'Type the cash the customer gave') : '';
   $('place').disabled = !!why || placing;
   $('place').textContent = why ? 'PLACE ORDER' : `PLACE ORDER · ${rupee(cartTotal())}`;
   $('hint').textContent = why;
@@ -101,13 +129,14 @@ async function place() {
   placing = true; paintBuilder();
   const { data, error } = await sb.rpc('intake_place', {
     p_pin: pin, p_cheese: cart.cheese, p_plain: cart.plain, p_coke: cart.coke, p_parcel: cart.parcel,
-    p_method: cart.pay === 'LATER' ? null : cart.pay,
+    p_method: cart.pay,
   });
+  const given = cart.given, change = cart.pay === 'CASH' ? cart.given - cartTotal() : 0;
   placing = false;
   if (error) { paintBuilder(); return alert('No connection — the order was NOT placed. Try again.'); }
   if (!data.ok) { paintBuilder(); return alert(data.error); }
   const o = data.order;
-  Object.assign(cart, { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null });
+  Object.assign(cart, { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null, given: 0 }); $('given').value = '';
   paintBuilder(); poll();
   const pop = document.createElement('div');
   pop.className = 'tokenpop';
@@ -116,6 +145,7 @@ async function place() {
     <div class="n">#${o.token}</div>
     <div class="sum">${short(o)}${o.parcel ? ' · 🛍️ Parcel' : ''}</div>
     <div class="amt">${rupee(o.total)} · ${o.payment === 'PAID' ? '✅ ' + o.payMethod : '⏳ NOT PAID'}</div>
+    ${o.payMethod === 'CASH' ? `<div class="sum">Got ${rupee(given)} → <b style="font-size:36px;color:#4ade80">GIVE BACK ${rupee(change)}</b></div>` : ''}
     <button>NEXT ORDER</button></div>`;
   pop.querySelector('button').onclick = () => pop.remove();
   document.body.appendChild(pop);

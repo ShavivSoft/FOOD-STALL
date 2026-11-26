@@ -15,8 +15,10 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
 | 🗄️ Supabase | https://supabase.com/dashboard/project/vyfbyihamirthdftkfxg | database |
 
 ## How a token moves
-1. **Intake** taps the items (🧀 With cheese / No cheese / 🥤 Diet Coke), turns 🛍️ **Parcel** on or off, and picks **Cash / UPI / Pay later**. Then **PLACE ORDER** shows a giant token number to tell the customer.
-2. **Kitchen** gets a beep. Token cards show oldest first, with big item counts, a PARCEL tag and minutes waiting (orange after 7 min, red after 12). The cook taps **✅ READY**. *START* is optional.
+1. **Intake** taps the items (🧀 With cheese / Without cheese / 🥤 Diet Coke), turns 🛍️ **Parcel** on or off, and picks **💵 Cash** or **📱 UPI**.
+   - **Cash:** type what the customer gave, or tap a note button (Exact / ₹500 / ₹2,000…). The screen shows **GIVE BACK ₹X** in green, or **SHORT BY ₹X** in red, in which case the order can't be placed.
+   - **PLACE ORDER** shows a giant token number to tell the customer, plus the change to give back.
+2. **Kitchen** gets a beep. Token cards show oldest first, with huge colour blocks (yellow **🧀 WITH CHEESE**, dashed **WITHOUT CHEESE**), a PARCEL tag and minutes waiting (orange after 7 min, red after 12). The cook taps **✅ READY**. *START* is optional.
 3. **Delivery** gets a loud beep, a vibration and a full-screen **"READY — DELIVER NOW #12"**. They tap **✅ DELIVERED** once it's handed over. No prices are shown here: money is handled only at intake.
 4. If intake **cancels** a token, the kitchen (or delivery) gets a red **"CANCELLED — DO NOT MAKE"** screen.
 5. Every screen has **undo** for mis-taps. Admin can change any token from the **Change** menu.

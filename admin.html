@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261126223322">
+<meta name="app-version" content="20261127005556">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,7 +29,7 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="config.js?v=20261126223322"></script>
+<script src="config.js?v=20261127005556"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#9b3700;--bun:#fdb436;
@@ -154,7 +154,7 @@
     <h2 class="sec">Every token</h2>
     <div class="tools"><div id="chips" style="display:flex;gap:6px;flex-wrap:wrap"></div><span style="flex:1"></span><input id="search" type="search" inputmode="numeric" placeholder="Token #"></div>
     <div class="tablewrap"><table>
-      <thead><tr><th>Token</th><th>Time</th><th class="n">🧀 Cheese</th><th class="n">No cheese</th><th class="n">🥤 Coke</th><th class="n">Parcel</th><th class="n">Amount</th><th>Payment</th><th>Status</th><th class="n">Kitchen</th><th class="n">Delivery</th><th>Change</th></tr></thead>
+      <thead><tr><th>Token</th><th>Time</th><th class="n">🧀 With cheese</th><th class="n">Without cheese</th><th class="n">🥤 Coke</th><th class="n">Parcel</th><th class="n">Amount</th><th>Payment</th><th>Status</th><th class="n">Kitchen</th><th class="n">Delivery</th><th>Change</th></tr></thead>
       <tbody id="rows"></tbody><tfoot id="foot"></tfoot>
     </table></div>
   </main>
@@ -436,13 +436,13 @@ async function override(id, sel) {
 
 // ---------- save report (CSV opens in Excel / Google Sheets) ----------
 function csvDownload(list, name) {
-  const head = ['token', 'date', 'time', 'cheese', 'no_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
+  const head = ['token', 'date', 'time', 'with_cheese', 'without_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
   const t = (x) => (x ? new Date(x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
   const r1 = (x) => (x == null ? '' : Math.round(x * 10) / 10);
   const rows = [...list].sort((a, b) => a.token - b.token).map((o) => [o.token, o.day, t(o.createdAt), o.cheese, o.plain, o.coke, o.parcel ? 'yes' : 'no', o.parcelAmount, o.total,
     o.payment, o.payMethod || '', o.status, t(o.createdAt), t(o.readyAt), t(o.deliveredAt), r1(minsBetween(o.createdAt, o.readyAt)), r1(minsBetween(o.readyAt, o.deliveredAt))]);
   const s = stats(list);
-  const sum = [[], ['SUMMARY'], ['orders', s.orders], ['cancelled', s.cancelled], ['burgers_sold', s.cheese + s.plain], ['with_cheese', s.cheese], ['no_cheese', s.plain],
+  const sum = [[], ['SUMMARY'], ['orders', s.orders], ['cancelled', s.cancelled], ['burgers_sold', s.cheese + s.plain], ['with_cheese', s.cheese], ['without_cheese', s.plain],
     ['diet_coke', s.coke], ['parcels', s.parcels], ['parcel_charges', s.parcelMoney], ['cash', s.cash], ['upi', s.upi], ['revenue', s.revenue],
     ['unpaid', s.unpaid.reduce((a, o) => a + o.total, 0)]];
   const csv = [head, ...rows, ...sum].map((r) => r.join(',')).join('\n');
