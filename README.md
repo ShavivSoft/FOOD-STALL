@@ -1,4 +1,6 @@
-# 🍔 Chicken Burger Stall — QR ordering & token manager
+<p align="center"><img src="logo.png" alt="Burger Bytes" width="180"></p>
+
+# 🍔 Burger Bytes — QR ordering & token manager
 
 The customer scans a QR code and orders **Chicken Burger with Cheese (₹120)** and/or **without cheese (₹100)**.
 They get a **token number, the total to pay and the item count**. The token manager marks **PAID → PREPARING → READY → DELIVERED**.

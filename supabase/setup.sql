@@ -6,7 +6,7 @@
 -- ---------- tables ----------
 create table if not exists public.settings (
   id int primary key default 1 check (id = 1),
-  stall_name   text    not null default 'Chicken Burger Stall',
+  stall_name   text    not null default 'Burger Bytes',
   cheese_name  text    not null default 'Chicken Burger with Cheese',
   cheese_price numeric not null default 120,
   plain_name   text    not null default 'Chicken Burger (No Cheese)',
