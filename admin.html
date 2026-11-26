@@ -167,11 +167,9 @@
 <div class="modal" id="mReset"><div class="box">
   <h2>⚠️ Reset day</h2>
   <p id="rText" style="font-size:16px"></p>
-  <label>Type <b>RESET</b> to confirm</label>
-  <input type="text" id="rIn" autocomplete="off" autocapitalize="characters" spellcheck="false">
   <div class="err" id="rErr"></div>
   <div id="rUnsaved" class="note closed hidden" style="margin-top:10px"></div>
-  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="rGo" style="background:#b91c1c">Reset day</button></div>
+  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="rGo" style="background:#b91c1c">✅ Yes, reset</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -483,20 +481,16 @@ $('saveBtn').onclick = () => saveDay(false);
 // Reset day: clears every screen and restarts tokens at #1 (admin only). Saved copies stay.
 $('resetBtn').onclick = async () => {
   $('rText').innerHTML = `Clears <b>all ${orders.size} order(s)</b> for <b>${viewDate}</b> — every stage — from the counter, kitchen and delivery screens. The next order starts at <b>token #1</b>. Saved copies stay in History.`;
-  $('rIn').value = ''; $('rErr').textContent = ''; $('rGo').disabled = false;
+  $('rErr').textContent = ''; $('rGo').disabled = false;
   $('rUnsaved').classList.add('hidden');
-  $('mReset').classList.add('show'); setTimeout(() => $('rIn').focus(), 50);
+  $('mReset').classList.add('show');
   const n = unsavedCount(await savedIds(viewDate));
   if (n) {
     $('rUnsaved').innerHTML = `⚠️ ${n} order(s) are NOT saved — they will be gone after reset. <button class="fchip" style="margin-left:6px" onclick="saveDay(false).then(() => $('resetBtn').onclick())">💾 Save now</button>`;
     $('rUnsaved').classList.remove('hidden');
   }
 };
-$('rIn').onkeydown = (e) => e.key === 'Enter' && $('rGo').click();
 $('rGo').onclick = async () => {
-  if ($('rIn').value.trim().toUpperCase() !== 'RESET') return ($('rErr').textContent = 'Type RESET first');
-  const n = unsavedCount(await savedIds(viewDate));
-  if (n && !confirm(`${n} order(s) are not saved and will be gone for good. Reset anyway?`)) return;
   $('rGo').disabled = true; $('rErr').textContent = 'Resetting…';
   const day = viewDate;
   const { data, error } = await sb.rpc('admin_reset_day', { p_day: day });

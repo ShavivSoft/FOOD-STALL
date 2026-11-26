@@ -31,7 +31,7 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
 - **🟢 OPEN / 🔴 CLOSED** switch. When closed, intake can't take orders, but kitchen and delivery can finish open tokens.
 - **Settings:** item names and prices, the Diet Coke price, parcel charge (**once per order** or **per burger**), the **staff PINs** and your password.
 - **💾 Save** keeps a copy of the day's orders in History and downloads a report (opens in Excel or Google Sheets). Nothing is cleared, and you can save as often as you like.
-- **Reset day** clears the day's tokens from every screen and restarts at **#1**. You must type RESET. It warns you if any orders aren't saved, and has a **Save now** button. Saved copies are never deleted.
+- **Reset day** clears the day's tokens from every screen and restarts at **#1**, after one **Yes, reset** tap. It warns you if any orders aren't saved, and has a **Save now** button. Saved copies are never deleted.
 - **Only the admin** can Save or Reset. The staff screens have no such buttons, and the database refuses them.
 
 ## Setup (already done, except the latest update)
