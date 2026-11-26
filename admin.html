@@ -59,7 +59,7 @@
   .empty{text-align:center;color:var(--mute);padding:50px 0;font-size:18px}
   .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
   .modal.show{display:flex}
-  .box{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow:auto}
+  .box{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:520px;max-height:90vh;overflow:auto}
   .box h2{margin:0 0 14px}
   .box label{display:block;font-weight:600;margin:10px 0 4px}
   .box input{width:100%;padding:11px;border:2px solid #e7e5e4;border-radius:10px;font-size:16px}
@@ -131,7 +131,8 @@
 
 <div class="modal" id="mHist"><div class="box">
   <h2>Order history</h2>
-  <table><thead><tr><th>Date</th><th>Orders</th><th>Paid revenue</th></tr></thead><tbody id="hBody"></tbody></table>
+  <p style="margin:-6px 0 10px;color:var(--mute);font-size:13px">Burgers sold = paid orders only.</p>
+  <table><thead><tr><th>Date</th><th>Orders</th><th>🍔 Sold</th><th>🧀 / plain</th><th>Paid revenue</th></tr></thead><tbody id="hBody"></tbody></table>
   <div class="btns"><button onclick="closeM()">Close</button></div>
 </div></div>
 
@@ -280,9 +281,11 @@ function render() {
   const cnt = (f) => all.filter(f).length;
   const unpaid = all.filter((o) => o.payment === 'NOT_PAID');
   const revenue = all.filter((o) => o.payment === 'PAID').reduce((s, o) => s + o.total, 0);
-  const items = all.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain }), { c: 0, p: 0 });
+  const sum = (list) => list.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain }), { c: 0, p: 0 });
+  const items = sum(all), sold = sum(all.filter((o) => o.payment === 'PAID'));
   $('stats').innerHTML = [
-    ['Total orders', all.length, '#1c1917', `🧀 ${items.c} with cheese · ${items.p} without`],
+    ['🍔 Burgers sold (paid)', sold.c + sold.p, '#b45309', `🧀 ${sold.c} with cheese · ${sold.p} without`],
+    ['Total orders', all.length, '#1c1917', `${items.c + items.p} burgers ordered`],
     ['New', cnt((o) => o.status === 'NEW'), 'var(--new)'],
     ['Preparing', cnt((o) => o.status === 'PREPARING'), 'var(--prep)'],
     ['Ready', cnt((o) => o.status === 'READY'), 'var(--ready)'],
@@ -385,10 +388,25 @@ $('resetBtn').onclick = async () => {
   await load(viewDate); toast(`Reset done — ${data} order(s) deleted`);
 };
 $('histBtn').onclick = async () => {
-  const { data, error } = await sb.rpc('admin_history');
-  if (error) return toast(error.message);
-  $('hBody').innerHTML = (data || []).map((r) => `<tr><td><a onclick="closeM();load('${r.day}')">${r.day}</a></td><td>${r.orders}</td><td>${rupee(r.revenue)}</td></tr>`).join('') || '<tr><td colspan=3>No orders yet</td></tr>';
-  $('mHist').classList.add('show');
+  $('hBody').innerHTML = '<tr><td colspan=5>Loading…</td></tr>'; $('mHist').classList.add('show');
+  const rows = [];
+  for (let from = 0; ; from += 1000) { // read every order, 1000 at a time
+    const { data, error } = await sb.from('orders').select('day, cheese, plain, payment, total').order('day', { ascending: false }).range(from, from + 999);
+    if (error) return toast(error.message);
+    rows.push(...data);
+    if (data.length < 1000) break;
+  }
+  const days = new Map(), all = { orders: 0, c: 0, p: 0, revenue: 0 };
+  for (const r of rows) {
+    const d = days.get(r.day) || { orders: 0, c: 0, p: 0, revenue: 0 };
+    d.orders++; all.orders++;
+    if (r.payment === 'PAID') { d.c += r.cheese; d.p += r.plain; d.revenue += Number(r.total); all.c += r.cheese; all.p += r.plain; all.revenue += Number(r.total); }
+    days.set(r.day, d);
+  }
+  const line = (label, d, bold) => `<tr${bold ? ' style="font-weight:800;background:#fafaf9"' : ''}><td>${label}</td><td>${d.orders}</td><td>${d.c + d.p}</td><td>${d.c} / ${d.p}</td><td>${rupee(d.revenue)}</td></tr>`;
+  $('hBody').innerHTML = rows.length
+    ? line('All time', all, true) + [...days].map(([day, d]) => line(`<a onclick="closeM();load('${day}')">${day}</a>`, d)).join('')
+    : '<tr><td colspan=5>No orders yet</td></tr>';
 };
 
 start().catch((e) => showLogin(e.message));

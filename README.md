@@ -49,7 +49,8 @@ Go to repo **Settings → Pages → Source: Deploy from a branch → `main` / ro
 ## Using it
 - Open `admin.html` and log in. Use **QR code → Print** to make the poster for the counter.
 - **🟢 OPEN / 🔴 WE'RE CLOSED** (top bar) switches the customer page to a big "We're closed" screen and blocks new orders. Phones that already have the page open switch within ~15 seconds. **Settings** changes names and prices; new prices only apply to new orders.
-- Tokens restart at #1 every day (India time) and never repeat within a day. **History** shows past days.
+- **🍔 Burgers sold** (first tile) counts burgers in **paid** orders for the day, split into with cheese and without. The Total orders tile shows everything ordered, including unpaid.
+- Tokens restart at #1 every day (India time) and never repeat within a day. **History** shows each day's orders, burgers sold (cheese / plain) and paid revenue, plus an **All time** total.
 - Tapping READY again on a ready order sends the notification again.
 - **Reset day** (top bar) permanently deletes all orders for the day you're viewing and restarts tokens at #1. You have to type RESET to confirm. Use it to clear test orders.
 - **Notifications:** when a customer taps **Place order**, the phone asks to allow notifications. If they allow it, tapping READY makes their phone alert them, even if they've closed the page.
