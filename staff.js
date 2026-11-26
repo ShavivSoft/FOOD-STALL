@@ -1,6 +1,7 @@
 // Burger Bytes — shared code for the Intake, Kitchen and Delivery screens.
 // Each page sets window.ROLE = 'intake' | 'kitchen' | 'delivery' before loading this file.
 const ROLE = window.ROLE;
+if (!window.canReload) window.canReload = () => !document.querySelector('.flash');
 const TITLES = { intake: 'INTAKE · COUNTER', kitchen: 'KITCHEN', delivery: 'DELIVERY' };
 const CFG = window.STALL_CONFIG;
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, { auth: { persistSession: false } });

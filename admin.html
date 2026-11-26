@@ -2,13 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="app-version" content="20261126223322">
+<script>
+// Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
+(function () {
+  const mine = document.querySelector('meta[name=app-version]').content;
+  const u0 = new URL(location.href);
+  if (u0.searchParams.has('v')) { u0.searchParams.delete('v'); history.replaceState(null, '', u0.pathname + u0.search + u0.hash); }
+  async function check() {
+    try {
+      const { v } = await (await fetch('version.json?t=' + Date.now(), { cache: 'no-store' })).json();
+      if (!v || v === mine) return;
+      if (sessionStorage.getItem('upd-tried') === v) return; // tried once already: never loop
+      if (window.canReload && !window.canReload()) return setTimeout(check, 15000); // busy — try again shortly
+      sessionStorage.setItem('upd-tried', v);
+      const u = new URL(location.href); u.searchParams.set('v', v); location.replace(u.toString());
+    } catch {}
+  }
+  check(); setInterval(check, 3 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check());
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1c1917">
 <title>Admin · Burger Bytes</title>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="config.js?v=7"></script>
+<script src="config.js?v=20261126223322"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#9b3700;--bun:#fdb436;
@@ -181,6 +202,7 @@ const CFG = window.STALL_CONFIG;
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 let orders = new Map(), settings = {}, viewDate = null, todayStr = null, filter = 'ALL', chan = null, staff = [], staffNow = Date.now();
 let sound = localStorage.getItem('adm-sound') !== '0';
+window.canReload = () => !document.querySelector('.modal.show');
 
 function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => (el.style.display = 'none'), 2800); }
 const norm = (r) => ({
