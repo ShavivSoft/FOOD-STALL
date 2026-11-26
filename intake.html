@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1c1917">
+<title>Intake · Burger Bytes</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="staff.css?v=1">
+<script src="config.js?v=7"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<script>window.ROLE = 'intake';</script>
+<script src="staff.js?v=1"></script>
+<script>
+const cart = { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null }; // pay: 'CASH' | 'UPI' | 'LATER'
+let search = '', built = false, placing = false;
+
+function parcelAmount() {
+  if (!cart.parcel) return 0;
+  return S.parcelMode === 'burger' ? (cart.cheese + cart.plain) * Number(S.parcelCharge) : Number(S.parcelCharge);
+}
+const cartTotal = () => cart.cheese * S.cheesePrice + cart.plain * S.plainPrice + cart.coke * S.cokePrice + parcelAmount();
+
+window.render = () => {
+  if (!built) buildLayout();
+  paintBuilder(); paintList();
+};
+function buildLayout() {
+  built = true;
+  $('main').innerHTML = `<div class="intake">
+    <div class="builder">
+      <div id="items"></div>
+      <button class="tog" id="parcelBtn"></button>
+      <div class="pay">
+        <button data-p="CASH">💵 CASH</button><button data-p="UPI">📱 UPI</button><button data-p="LATER" class="later">⏳ PAY LATER</button>
+      </div>
+      <div class="tot"><span id="cnt"></span><b id="total">₹0</b></div>
+      <button class="place" id="place">PLACE ORDER</button>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div>
+      <div class="listhead"><h2>Today's tokens</h2><span id="mini" style="color:var(--mute);font-weight:700"></span>
+        <input id="q" type="search" inputmode="numeric" placeholder="Token #"></div>
+      <div class="olist" id="list"></div>
+    </div>
+  </div>`;
+  document.querySelectorAll('.pay button').forEach((b) => b.onclick = () => { cart.pay = b.dataset.p; paintBuilder(); });
+  $('parcelBtn').onclick = () => { cart.parcel = !cart.parcel; paintBuilder(); };
+  $('place').onclick = place;
+  $('q').oninput = (e) => { search = e.target.value.replace(/\D/g, ''); paintList(); };
+}
+function itemRow(k, name, price) {
+  return `<div class="it"><div class="nm">${esc(name)}<small>${rupee(price)}</small></div>
+    <button onclick="chg('${k}',-1)">−</button><span class="q">${cart[k]}</span><button class="plus" onclick="chg('${k}',1)">+</button></div>`;
+}
+function chg(k, d) { cart[k] = Math.max(0, Math.min(50, cart[k] + d)); paintBuilder(); }
+function paintBuilder() {
+  $('items').innerHTML = itemRow('cheese', S.cheeseName, S.cheesePrice) + itemRow('plain', S.plainName, S.plainPrice) + itemRow('coke', S.cokeName, S.cokePrice);
+  const pa = parcelAmount();
+  $('parcelBtn').className = 'tog' + (cart.parcel ? ' on' : '');
+  $('parcelBtn').textContent = cart.parcel
+    ? `🛍️ PARCEL ✓  +${rupee(pa)}${S.parcelMode === 'burger' ? ` (${rupee(S.parcelCharge)} × burger)` : ''}`
+    : `🛍️ Parcel?  (+${rupee(S.parcelCharge)}${S.parcelMode === 'burger' ? ' per burger' : ''})`;
+  document.querySelectorAll('.pay button').forEach((b) => b.classList.toggle('on', b.dataset.p === cart.pay));
+  const n = cart.cheese + cart.plain + cart.coke;
+  $('cnt').textContent = n ? `${n} item${n > 1 ? 's' : ''}` : 'No items';
+  $('total').textContent = rupee(cartTotal());
+  const why = !S.isOpen ? 'Stall is closed' : !n ? 'Add items' : !cart.pay ? 'Choose Cash, UPI or Pay later' : '';
+  $('place').disabled = !!why || placing;
+  $('place').textContent = why ? 'PLACE ORDER' : `PLACE ORDER · ${rupee(cartTotal())}`;
+  $('hint').textContent = why;
+}
+async function place() {
+  if (placing) return;
+  placing = true; paintBuilder();
+  const { data, error } = await sb.rpc('intake_place', {
+    p_pin: pin, p_cheese: cart.cheese, p_plain: cart.plain, p_coke: cart.coke, p_parcel: cart.parcel,
+    p_method: cart.pay === 'LATER' ? null : cart.pay,
+  });
+  placing = false;
+  if (error) { paintBuilder(); return alert('No connection — the order was NOT placed. Try again.'); }
+  if (!data.ok) { paintBuilder(); return alert(data.error); }
+  const o = data.order;
+  Object.assign(cart, { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null });
+  paintBuilder(); poll();
+  const pop = document.createElement('div');
+  pop.className = 'tokenpop';
+  pop.innerHTML = `<div>
+    <div class="lbl">TELL THE CUSTOMER — TOKEN</div>
+    <div class="n">#${o.token}</div>
+    <div class="sum">${short(o)}${o.parcel ? ' · 🛍️ Parcel' : ''}</div>
+    <div class="amt">${rupee(o.total)} · ${o.payment === 'PAID' ? '✅ ' + o.payMethod : '⏳ NOT PAID'}</div>
+    <button>NEXT ORDER</button></div>`;
+  pop.querySelector('button').onclick = () => pop.remove();
+  document.body.appendChild(pop);
+}
+function paintList() {
+  const C = { NEW: 'var(--new)', PREPARING: 'var(--prep)', READY: 'var(--ready)', DELIVERED: 'var(--done)', CANCELLED: 'var(--cancel)' };
+  const live = orders.filter((o) => o.status !== 'CANCELLED');
+  const unpaid = live.filter((o) => o.payment === 'NOT_PAID');
+  $('mini').textContent = `${live.length} orders · ${unpaid.length ? unpaid.length + ' unpaid (' + rupee(unpaid.reduce((s, o) => s + Number(o.total), 0)) + ')' : 'all paid'}`;
+  const list = [...orders].reverse().filter((o) => !search || String(o.token).startsWith(search));
+  $('list').innerHTML = list.length ? list.map((o) => `
+    <div class="orow ${o.status}" style="--c:${C[o.status]}">
+      <div class="no">#${o.token}</div>
+      <div class="what">${short(o)}${o.parcel ? ' · <span class="parcel" style="padding:1px 8px">🛍️ Parcel</span>' : ''}<br>
+        <span>${new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="pill s-${o.status}">${o.status === 'PREPARING' ? 'COOKING' : o.status}</span></div>
+      <div class="side">
+        <div class="amt">${rupee(o.total)}</div>
+        <span class="pill p-${o.payment}">${o.payment === 'PAID' ? 'PAID · ' + o.payMethod : 'NOT PAID'}</span>
+        <div class="btns">
+          ${o.status !== 'CANCELLED' && o.payment === 'NOT_PAID' ? `<button class="cash" onclick="act('${o.id}','paid_cash')">💵 Cash</button><button class="upi" onclick="act('${o.id}','paid_upi')">📱 UPI</button>` : ''}
+          ${o.status !== 'CANCELLED' && o.payment === 'PAID' ? `<button onclick="unpay('${o.id}',${o.token})">undo paid</button>` : ''}
+          ${o.status === 'NEW' || o.status === 'PREPARING' ? `<button class="x" onclick="cancelOrder('${o.id}',${o.token})">Cancel</button>` : ''}
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty">No orders yet today</div>';
+}
+function unpay(id, n) { if (confirm(`Mark token #${n} as NOT paid?`)) act(id, 'unpaid'); }
+function cancelOrder(id, n) { if (confirm(`Cancel token #${n}? The kitchen will be told to stop.`)) act(id, 'cancel'); }
+</script>
+</body>
+</html>

@@ -4,86 +4,97 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1c1917">
-<title>Burger Bytes · Token Manager</title>
+<title>Admin · Burger Bytes</title>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="config.js?v=6"></script>
+<script src="config.js?v=7"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
-  :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;
-    --new:#f97316;--prep:#2563eb;--ready:#16a34a;--done:#6b7280;--unpaid:#dc2626;--paid:#16a34a}
+  :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#9b3700;--bun:#fdb436;
+    --new:#f97316;--prep:#2563eb;--ready:#16a34a;--done:#6b7280;--cancel:#57534e;--unpaid:#dc2626;--paid:#16a34a;--upi:#7c3aed}
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
   button{font:inherit;cursor:pointer}
-  .top{position:sticky;top:0;z-index:5;background:#1c1917;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .top h1{font-size:19px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hidden{display:none!important}
+  .top{position:sticky;top:0;z-index:5;background:#1c1917;color:#fff;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .top img{height:38px;background:#fff;border-radius:8px;padding:2px}
+  .top h1{font-size:18px;margin:0 6px 0 0;white-space:nowrap}
+  .top .sp{flex:1}
   .top button{background:#ffffff1a;color:#fff;border:0;border-radius:10px;padding:9px 12px;font-weight:600}
-  .top .open{background:#16a34a;font-size:16px;padding:10px 16px}.top .shut{background:#dc2626;font-size:16px;padding:10px 16px;animation:blink 1.6s infinite}
+  .top .open{background:#16a34a;font-weight:800}.top .shut{background:#dc2626;font-weight:800;animation:blink 1.6s infinite}
+  .top .danger{background:#7f1d1d}
   @keyframes blink{50%{opacity:.7}}
-  #pushState{font-size:13px;opacity:.85;white-space:nowrap}
-  .closedNote{background:#fee2e2;color:#991b1b;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-weight:700}
-  .live{width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block}
-  .live.on{background:#22c55e}
-  main{padding:14px 16px 40px;max-width:1400px;margin:0 auto}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-  .stat{background:var(--card);border-radius:14px;padding:12px 14px;border-left:6px solid #d6d3d1}
-  .stat span{color:var(--mute);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-  .stat b{display:block;font-size:28px;margin-top:2px}
-  .stat small{color:var(--mute)}
-  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}
-  .chip{border:2px solid #e7e5e4;background:#fff;border-radius:999px;padding:8px 14px;font-weight:700}
-  .chip.on{background:#1c1917;color:#fff;border-color:#1c1917}
-  .chip i{font-style:normal;opacity:.65;margin-left:4px}
-  .tools input{padding:10px 12px;border:2px solid #e7e5e4;border-radius:12px;font-size:16px;width:140px}
-  .spacer{flex:1}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
-  .o{background:var(--card);border-radius:16px;padding:14px;border-top:8px solid var(--c);box-shadow:0 1px 4px #0000000f;position:relative}
-  .o.flash{animation:flash 1s 3}
-  .o.READY{box-shadow:0 0 0 3px var(--ready)}
-  .o.DELIVERED{opacity:.6}
-  @keyframes flash{50%{background:#fff7ed}}
-  .o-head{display:flex;justify-content:space-between;align-items:flex-start}
-  .o-tok{font-size:44px;font-weight:900;line-height:1}
-  .o-time{color:var(--mute);font-size:13px;text-align:right}
-  .o-items{margin:10px 0;font-size:17px;line-height:1.5}
-  .o-items b{font-size:20px}
-  .o-total{display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--mute)}
-  .o-total b{font-size:26px;color:var(--ink)}
-  .pills{display:flex;gap:6px;margin:10px 0}
-  .pill{color:#fff;border-radius:999px;padding:4px 10px;font-weight:800;font-size:13px}
-  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .acts button{border:0;border-radius:12px;padding:14px 6px;font-weight:800;font-size:15px;color:#fff;background:#d6d3d1}
-  .acts .pay{grid-column:1/-1}
-  .acts button.cur{outline:3px solid #1c1917;outline-offset:1px}
-  .acts .b-paid{background:var(--paid)} .acts .b-unpaid{background:var(--unpaid)}
-  .acts .b-prep{background:var(--prep)} .acts .b-ready{background:var(--ready)} .acts .b-done{background:var(--done)} .acts .b-new{background:var(--new)}
-  .empty{text-align:center;color:var(--mute);padding:50px 0;font-size:18px}
-  .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  .live{width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block}.live.on{background:#22c55e}
+  main{padding:14px 16px 50px;max-width:1500px;margin:0 auto}
+  .note{padding:11px 14px;border-radius:12px;margin-bottom:12px;font-weight:700}
+  .note.closed{background:#fee2e2;color:#991b1b}.note.day{background:#fef3c7}
+  h2.sec{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:18px 0 8px}
+  .staff{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+  .who{background:#fff;border-radius:14px;padding:12px 14px;border-left:7px solid #d6d3d1}
+  .who.on{border-left-color:#16a34a}.who.off{border-left-color:#dc2626}
+  .who .h{display:flex;justify-content:space-between;font-weight:900;font-size:18px}
+  .who .st{font-size:13px;font-weight:700}.who.on .st{color:#15803d}.who.off .st{color:#b91c1c}
+  .who .nums{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;color:var(--mute);font-size:13px;font-weight:600}
+  .who .nums b{display:block;color:var(--ink);font-size:22px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .tile{background:#fff;border-radius:14px;padding:12px 14px;border-left:6px solid var(--c,#d6d3d1)}
+  .tile span{color:var(--mute);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .tile b{display:block;font-size:28px;margin-top:2px}
+  .tile small{color:var(--mute);font-weight:600}
+  .pipe{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media (max-width:900px){.pipe{grid-template-columns:1fr}}
+  .col{background:#fff;border-radius:14px;padding:12px;min-height:90px;border-top:6px solid var(--c)}
+  .col h3{margin:0 0 8px;font-size:16px;display:flex;justify-content:space-between}
+  .chip{display:inline-flex;gap:6px;align-items:center;background:#f5f5f4;border-radius:10px;padding:6px 10px;margin:3px;font-weight:800}
+  .chip small{color:var(--mute);font-weight:600}
+  .chip.late{background:#fee2e2}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+  .fchip{border:2px solid #e7e5e4;background:#fff;border-radius:999px;padding:7px 13px;font-weight:700}
+  .fchip.on{background:#1c1917;color:#fff;border-color:#1c1917}
+  .fchip i{font-style:normal;opacity:.6;margin-left:4px}
+  .tools input{padding:9px 12px;border:2px solid #e7e5e4;border-radius:12px;font-size:15px;width:120px}
+  .tablewrap{background:#fff;border-radius:14px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap}
+  th{background:#fafaf9;text-align:left;padding:9px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--mute);position:sticky;top:0}
+  td{padding:8px 10px;border-top:1px solid #f5f5f4}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  tr.CANCELLED td{color:#a8a29e;text-decoration:line-through}
+  tr.CANCELLED td.keep{text-decoration:none}
+  tfoot td{font-weight:900;background:#fafaf9;border-top:2px solid #e7e5e4}
+  .tok{font-weight:900;font-size:17px}
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-weight:800;font-size:12px;color:#fff}
+  .s-NEW{background:var(--new)}.s-PREPARING{background:var(--prep)}.s-READY{background:var(--ready)}.s-DELIVERED{background:var(--done)}.s-CANCELLED{background:var(--cancel)}
+  .p-CASH{background:var(--paid)}.p-UPI{background:var(--upi)}.p-NOT_PAID{background:var(--unpaid)}
+  .late{color:#dc2626;font-weight:800}
+  select.act{padding:5px;border-radius:8px;border:1px solid #d6d3d1;font-size:13px}
+  .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:20;padding:14px}
   .modal.show{display:flex}
-  .box{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:520px;max-height:90vh;overflow:auto}
-  .box h2{margin:0 0 14px}
-  .box label{display:block;font-weight:600;margin:10px 0 4px}
-  .box input{width:100%;padding:11px;border:2px solid #e7e5e4;border-radius:10px;font-size:16px}
+  .box{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:560px;max-height:92vh;overflow:auto}
+  .box.wide{max-width:1100px}
+  .box h2{margin:0 0 12px}
+  .box h4{margin:16px 0 6px;color:var(--mute);text-transform:uppercase;font-size:12px;letter-spacing:.05em}
+  .box label{display:block;font-weight:600;margin:8px 0 4px;font-size:14px}
+  .box input[type=text],.box input[type=number],.box input[type=password]{width:100%;padding:10px;border:2px solid #e7e5e4;border-radius:10px;font-size:16px}
   .row2{display:grid;grid-template-columns:1fr 110px;gap:8px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .radio{display:flex;gap:14px;font-weight:600;margin-top:4px}
   .box .btns{display:flex;gap:8px;margin-top:16px}
   .box .btns button{flex:1;padding:12px;border-radius:12px;border:0;font-weight:700;background:#e7e5e4}
   .box .btns .pri{background:#1c1917;color:#fff}
-  .login{max-width:340px;margin:12vh auto;background:#fff;border-radius:18px;padding:24px}
-  .login input{width:100%;padding:14px;font-size:18px;border:2px solid #e7e5e4;border-radius:12px;margin:10px 0}
-  .login button{width:100%;padding:14px;font-size:18px;border:0;border-radius:12px;background:#1c1917;color:#fff;font-weight:700}
+  .login{max-width:340px;margin:10vh auto;background:#fff;border-radius:18px;padding:24px;text-align:center}
+  .login input{width:100%;padding:13px;font-size:17px;border:2px solid #e7e5e4;border-radius:12px;margin:6px 0}
+  .login button{width:100%;padding:13px;font-size:17px;border:0;border-radius:12px;background:#1c1917;color:#fff;font-weight:700;margin-top:6px}
   .err{color:#b91c1c;min-height:20px}
   .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1c1917;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;display:none;z-index:30}
-  table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #f5f5f4;text-align:left}
-  td a{color:#2563eb;font-weight:700;cursor:pointer}
-  .hidden{display:none!important}
+  .links{display:flex;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:6px}
+  .links a{color:#2563eb;font-weight:700}
 </style>
 </head>
 <body>
 <div id="login" class="login hidden">
-  <img src="logo.png" alt="Burger Bytes" style="display:block;width:150px;margin:0 auto 6px"><h2 style="margin-top:0;text-align:center">Token Manager</h2>
+  <img src="logo.png" alt="Burger Bytes" style="width:150px">
+  <h2 style="margin:4px 0 10px">Admin</h2>
   <input id="em" type="email" placeholder="Email" autocomplete="username">
   <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
   <div class="err" id="lerr"></div>
@@ -93,51 +104,61 @@
 <div id="app" class="hidden">
   <div class="top">
     <span class="live" id="live" title="Live connection"></span>
-    <img src="logo.png" alt="" style="height:38px;width:auto;background:#fff;border-radius:8px;padding:2px">
-    <h1 id="title">Token Manager</h1>
+    <img src="logo.png" alt=""><h1>Admin</h1>
     <button id="openBtn" class="open">🟢 OPEN · tap to close</button>
-    <span id="pushState" title="Phone notifications">🔔 …</span>
+    <span class="sp"></span>
     <button id="soundBtn">🔔 Sound on</button>
-    <button id="qrBtn">QR code</button>
+    <button id="csvBtn">⬇ CSV</button>
     <button id="histBtn">History</button>
     <button id="setBtn">Settings</button>
-    <button id="resetBtn" style="background:#7f1d1d">Reset day</button>
+    <button id="resetBtn" class="danger">Reset day</button>
     <button id="outBtn">Log out</button>
   </div>
   <main>
-    <div id="closedNote" class="closedNote hidden">🔴 You're CLOSED — customers see "We're closed" and can't order. Tap the red button at the top to open.</div>
-    <div id="dayNote" class="hidden" style="background:#fef3c7;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-weight:600"></div>
-    <div class="stats" id="stats"></div>
-    <div class="tools">
-      <div id="chips" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-      <span class="spacer"></span>
-      <input id="search" type="search" inputmode="numeric" placeholder="Token #">
-    </div>
-    <div class="grid" id="grid"></div>
+    <div id="closedNote" class="note closed hidden">🔴 CLOSED — the counter can't take new orders. Kitchen and delivery can still finish open tokens. Tap the red button to open.</div>
+    <div id="dayNote" class="note day hidden"></div>
+
+    <h2 class="sec">Staff screens</h2>
+    <div class="staff" id="staff"></div>
+    <div class="links">Open on each device: <a href="intake.html" target="_blank">Intake</a><a href="kitchen.html" target="_blank">Kitchen</a><a href="delivery.html" target="_blank">Delivery</a></div>
+
+    <h2 class="sec">Money</h2>
+    <div class="tiles" id="money"></div>
+    <h2 class="sec">Sold</h2>
+    <div class="tiles" id="sold"></div>
+
+    <h2 class="sec">Right now</h2>
+    <div class="pipe" id="pipe"></div>
+
+    <h2 class="sec">Every token</h2>
+    <div class="tools"><div id="chips" style="display:flex;gap:6px;flex-wrap:wrap"></div><span style="flex:1"></span><input id="search" type="search" inputmode="numeric" placeholder="Token #"></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Token</th><th>Time</th><th class="n">🧀 Cheese</th><th class="n">No cheese</th><th class="n">🥤 Coke</th><th class="n">Parcel</th><th class="n">Amount</th><th>Payment</th><th>Status</th><th class="n">Kitchen</th><th class="n">Delivery</th><th>Change</th></tr></thead>
+      <tbody id="rows"></tbody><tfoot id="foot"></tfoot>
+    </table></div>
   </main>
 </div>
 
 <div class="modal" id="mSet"><div class="box">
   <h2>Settings</h2>
-  <label>Stall name</label><input id="sName">
-  <label>Item 1 name / price (₹)</label><div class="row2"><input id="sCN"><input id="sCP" type="number" min="0" step="1"></div>
-  <label>Item 2 name / price (₹)</label><div class="row2"><input id="sPN"><input id="sPP" type="number" min="0" step="1"></div>
-  <label>New login password (optional)</label><input id="sPw" type="password" placeholder="Leave blank to keep">
-  <p style="color:var(--mute);font-size:13px">Price changes apply to new orders only.</p>
+  <label>Stall name</label><input type="text" id="sName">
+  <h4>Menu & prices (₹) — changes apply to new orders</h4>
+  <div class="row2"><input type="text" id="sCN"><input type="number" id="sCP" min="0"></div>
+  <div class="row2" style="margin-top:6px"><input type="text" id="sPN"><input type="number" id="sPP" min="0"></div>
+  <div class="row2" style="margin-top:6px"><input type="text" id="sKN"><input type="number" id="sKP" min="0"></div>
+  <h4>Parcel charge</h4>
+  <div class="row2"><div class="radio"><label><input type="radio" name="pm" value="order"> once per order</label><label><input type="radio" name="pm" value="burger"> per burger</label></div><input type="number" id="sParcel" min="0"></div>
+  <h4>Staff screen PINs (4–8 digits) — leave blank to keep</h4>
+  <div class="row3"><div><label>Intake</label><input type="password" inputmode="numeric" id="pinI"></div><div><label>Kitchen</label><input type="password" inputmode="numeric" id="pinK"></div><div><label>Delivery</label><input type="password" inputmode="numeric" id="pinD"></div></div>
+  <h4>Your admin password</h4>
+  <input type="password" id="sPw" placeholder="New password — leave blank to keep">
   <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="sSave">Save</button></div>
 </div></div>
 
-<div class="modal" id="mQR"><div class="box" style="text-align:center">
-  <img src="logo.png" alt="Burger Bytes" style="width:150px"><h2>Scan to order</h2>
-  <div id="qrBox" style="width:100%;max-width:340px;margin:0 auto"></div>
-  <p id="qrUrl" style="font-weight:700;word-break:break-all"></p>
-  <div class="btns"><button onclick="closeM()">Close</button><button class="pri" id="qrPrint">Print</button></div>
-</div></div>
-
-<div class="modal" id="mHist"><div class="box">
-  <h2>Order history</h2>
-  <p style="margin:-6px 0 10px;color:var(--mute);font-size:13px">Burgers sold = paid orders only.</p>
-  <table><thead><tr><th>Date</th><th>Orders</th><th>🍔 Sold</th><th>🧀 / plain</th><th>Paid revenue</th></tr></thead><tbody id="hBody"></tbody></table>
+<div class="modal" id="mHist"><div class="box wide">
+  <h2>History</h2>
+  <p style="margin:-6px 0 10px;color:var(--mute);font-size:13px">Sold = paid orders that weren't cancelled. Tap a date to open that day.</p>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th class="n">Orders</th><th class="n">Cancelled</th><th class="n">🍔 Burgers</th><th class="n">🧀 / plain</th><th class="n">🥤 Coke</th><th class="n">🛍️ Parcels</th><th class="n">Cash</th><th class="n">UPI</th><th class="n">Revenue</th><th class="n">Unpaid</th></tr></thead><tbody id="hBody"></tbody></table></div>
   <div class="btns"><button onclick="closeM()">Close</button></div>
 </div></div>
 
@@ -146,29 +167,33 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const rupee = (n) => '₹' + (Math.round(Number(n) * 100) / 100).toLocaleString('en-IN');
-const C = { NEW: 'var(--new)', PREPARING: 'var(--prep)', READY: 'var(--ready)', DELIVERED: 'var(--done)', PAID: 'var(--paid)', NOT_PAID: 'var(--unpaid)' };
 const CFG = window.STALL_CONFIG;
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-const SITE = location.href.split(/[?#]/)[0].replace(/admin\.html$/, ''); // customer page URL
-let orders = new Map(), pushOn = new Set(), settings = {}, viewDate = null, todayStr = null, filter = 'ACTIVE', chan = null;
+let orders = new Map(), settings = {}, viewDate = null, todayStr = null, filter = 'ALL', chan = null, staff = [], staffNow = Date.now();
 let sound = localStorage.getItem('adm-sound') !== '0';
-const flashIds = new Set();
 
-function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
+function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => (el.style.display = 'none'), 2800); }
 const norm = (r) => ({
-  id: r.id, token: r.token, date: r.day, cheese: r.cheese, plain: r.plain, totalItems: r.total_items,
-  total: Number(r.total), payment: r.payment, status: r.status, createdAt: r.created_at, readyAt: r.ready_at,
+  id: r.id, token: r.token, day: String(r.day).slice(0, 10), cheese: r.cheese, plain: r.plain, coke: r.coke || 0,
+  parcel: r.parcel, parcelAmount: Number(r.parcel_amount || 0), total: Number(r.total),
+  payment: r.payment, payMethod: r.pay_method, status: r.status,
+  createdAt: r.created_at, readyAt: r.ready_at, deliveredAt: r.delivered_at, cancelledAt: r.cancelled_at,
 });
-const normSettings = (s) => ({ stallName: s.stall_name, cheeseName: s.cheese_name, cheesePrice: Number(s.cheese_price),
-  plainName: s.plain_name, plainPrice: Number(s.plain_price), open: s.is_open, tz: s.tz });
+const normS = (s) => ({ stallName: s.stall_name, open: s.is_open, tz: s.tz,
+  cheeseName: s.cheese_name, cheesePrice: Number(s.cheese_price), plainName: s.plain_name, plainPrice: Number(s.plain_price),
+  cokeName: s.coke_name || 'Diet Coke', cokePrice: Number(s.coke_price || 0), parcelCharge: Number(s.parcel_charge || 0), parcelMode: s.parcel_mode || 'order' });
 const dayIn = (tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Asia/Kolkata' }).format(new Date());
+const minsBetween = (a, b) => (a && b ? (new Date(b) - new Date(a)) / 60000 : null);
+const fmtMin = (m) => (m == null ? '—' : m < 1 ? '<1 min' : Math.round(m) + ' min');
+const avg = (xs) => { const v = xs.filter((x) => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+const hhmm = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 // ---------- login ----------
 function showLogin(msg) { $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('lerr').textContent = msg || ''; if (chan) { sb.removeChannel(chan); chan = null; } }
 $('lbtn').onclick = async () => {
   $('lerr').textContent = '';
   const { error } = await sb.auth.signInWithPassword({ email: $('em').value.trim(), password: $('pw').value });
-  if (error) return $('lerr').textContent = error.message;
+  if (error) return ($('lerr').textContent = error.message);
   $('pw').value = ''; start();
 };
 $('pw').onkeydown = (e) => e.key === 'Enter' && $('lbtn').click();
@@ -177,14 +202,11 @@ $('outBtn').onclick = async () => { await sb.auth.signOut(); showLogin(); };
 // ---------- sound ----------
 let actx;
 document.addEventListener('pointerdown', () => { try { actx = actx || new AudioContext(); actx.resume(); } catch {} });
-function beep(kind) {
+function beep() {
   if (!sound || !actx) return;
-  const notes = kind === 'new' ? [660, 880] : [880];
-  notes.forEach((f, i) => {
-    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.18;
-    o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.3);
-  });
+  [660, 880].forEach((f, i) => { const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.18;
+    o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.3, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.3); });
 }
 function paintSound() { $('soundBtn').textContent = sound ? '🔔 Sound on' : '🔕 Sound off'; }
 $('soundBtn').onclick = () => { sound = !sound; localStorage.setItem('adm-sound', sound ? '1' : '0'); paintSound(); };
@@ -193,224 +215,257 @@ $('soundBtn').onclick = () => { sound = !sound; localStorage.setItem('adm-sound'
 async function load(date) {
   const s = await sb.from('settings').select('*').single();
   if (s.error) throw s.error;
-  settings = normSettings(s.data);
-  todayStr = dayIn(settings.tz);
-  viewDate = date || todayStr;
-  const r = await sb.from('orders').select('*').eq('day', viewDate).order('token', { ascending: true }).limit(2000);
+  settings = normS(s.data); todayStr = dayIn(settings.tz); viewDate = date || todayStr;
+  const r = await sb.from('orders').select('*').eq('day', viewDate).order('token').limit(5000);
   if (r.error) throw r.error;
   orders = new Map(r.data.map((x) => [x.id, norm(x)]));
-  pushOn = new Set();
-  if (r.data.length) {
-    const p = await sb.from('push_subs').select('order_id').in('order_id', r.data.map((x) => x.id));
-    (p.data || []).forEach((x) => pushOn.add(x.order_id));
-  }
   $('app').classList.remove('hidden'); $('login').classList.add('hidden');
   paintTop(); render();
 }
+async function loadStaff() {
+  const { data } = await sb.rpc('admin_staff_status');
+  if (data) { staff = data.staff; staffNow = new Date(data.now).getTime(); paintStaff(); }
+}
 function connect() {
   if (chan) sb.removeChannel(chan);
-  chan = sb.channel('orders-live')
+  chan = sb.channel('admin-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (p) => {
       if (!p.new || !p.new.id) return;
       const o = norm(p.new);
-      if (o.date !== viewDate) { if (o.date === todayStr && viewDate !== todayStr && p.eventType === 'INSERT') toast(`New order #${o.token} today`); return; }
-      const isNew = !orders.has(o.id);
-      orders.set(o.id, o);
-      if (isNew) { flashIds.add(o.id); beep('new'); }
-      render();
+      if (o.day !== viewDate) return;
+      if (!orders.has(o.id)) beep();
+      orders.set(o.id, o); render();
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'push_subs' }, (p) => {
-      if (p.new && orders.has(p.new.order_id)) { pushOn.add(p.new.order_id); render(); }
-    })
-    .subscribe((status) => {
-      $('live').classList.toggle('on', status === 'SUBSCRIBED');
-      if (status === 'SUBSCRIBED' && viewDate === todayStr) load(viewDate).catch(() => {}); // resync after reconnect
-    });
+    .subscribe((st) => { $('live').classList.toggle('on', st === 'SUBSCRIBED'); if (st === 'SUBSCRIBED' && viewDate === todayStr) load(viewDate).catch(() => {}); });
 }
-// safety net: resync every 20s and roll over at midnight
-setInterval(() => {
-  if (!settings.tz || $('app').classList.contains('hidden')) return;
+setInterval(() => { // safety net + midnight rollover + staff online status
+  if ($('app').classList.contains('hidden') || !settings.tz) return;
+  loadStaff();
   const t = dayIn(settings.tz);
-  if (viewDate === todayStr) load(t !== todayStr ? t : viewDate).catch(() => {});
-}, 20000);
+  if (viewDate === todayStr) load(t).catch(() => {});
+}, 10000);
+setInterval(() => { if (!$('app').classList.contains('hidden')) { paintStaff(); paintPipe(); } }, 30000);
 
 async function start() {
   paintSound();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return showLogin();
   const { data: ok } = await sb.rpc('is_admin');
-  if (!ok) { await sb.auth.signOut(); return showLogin('This account is not a token manager. Add its email to the admins table.'); }
-  await load(); connect(); initPush();
+  if (!ok) { await sb.auth.signOut(); return showLogin('This account is not an admin.'); }
+  await load(); connect(); loadStaff();
 }
 
 function paintTop() {
-  $('title').textContent = settings.stallName + ' · Tokens';
   const ob = $('openBtn');
-  ob.textContent = settings.open ? '🟢 OPEN · tap to close' : "🔴 WE'RE CLOSED · tap to open";
+  ob.textContent = settings.open ? '🟢 OPEN · tap to close' : "🔴 CLOSED · tap to open";
   ob.className = settings.open ? 'open' : 'shut';
   $('closedNote').classList.toggle('hidden', settings.open);
-  const note = $('dayNote');
-  note.classList.toggle('hidden', viewDate === todayStr);
-  note.innerHTML = `Viewing history for <b>${viewDate}</b> · <a href="#" onclick="load();return false">Back to today</a>`;
-  $('qrUrl').textContent = SITE;
+  $('dayNote').classList.toggle('hidden', viewDate === todayStr);
+  $('dayNote').innerHTML = `Viewing <b>${viewDate}</b> · <a href="#" onclick="load();return false">Back to today</a>`;
 }
 async function saveSettings(patch) {
   const { data, error } = await sb.from('settings').update(patch).eq('id', 1).select().single();
-  if (error) { toast(error.message); return false; }
-  settings = normSettings(data); paintTop(); render(); return true;
+  if (error) { toast(error.message.includes('coke') || error.message.includes('parcel') ? 'Run update-3-staff.sql in Supabase first' : error.message); return false; }
+  settings = normS(data); paintTop(); render(); return true;
 }
 $('openBtn').onclick = async () => {
-  if (settings.open && !confirm("Close the stall? Customers will see \"We're closed\" and can't place orders.")) return;
-  if (await saveSettings({ is_open: !settings.open })) toast(settings.open ? '🟢 Open — taking orders' : "🔴 Closed — customers see \"We're closed\"");
+  if (settings.open && !confirm('Close the stall? The counter will not be able to take new orders.')) return;
+  if (await saveSettings({ is_open: !settings.open })) toast(settings.open ? '🟢 Open — all screens can take orders' : '🔴 Closed');
 };
-async function initPush() { // creates the push keys on first run; shows whether push works
-  const el = $('pushState');
-  const r = await sb.functions.invoke('notify-ready', { body: { action: 'init' } }).catch((e) => ({ error: e }));
-  const ok = !r.error && r.data && r.data.publicKey;
-  el.textContent = ok ? '🔔 Push on' : '🔕 Push off';
-  el.title = ok ? 'Phones that allowed notifications get an alert on READY, even with the page closed.' : 'The notify-ready function is not deployed yet — see README step 3. The live page + popup still work.';
-}
 
-// ---------- render ----------
-const FILTERS = [
-  ['ACTIVE', 'Active', (o) => o.status !== 'DELIVERED'],
-  ['NEW', 'New', (o) => o.status === 'NEW'],
-  ['PREPARING', 'Preparing', (o) => o.status === 'PREPARING'],
-  ['READY', 'Ready', (o) => o.status === 'READY'],
-  ['DELIVERED', 'Delivered', (o) => o.status === 'DELIVERED'],
-  ['NOT_PAID', 'Not paid', (o) => o.payment === 'NOT_PAID' && o.status !== 'DELIVERED'],
-  ['ALL', 'All', () => true],
-];
+// ---------- numbers ----------
+function stats(list) {
+  const live = list.filter((o) => o.status !== 'CANCELLED');
+  const paid = live.filter((o) => o.payment === 'PAID');
+  const sum = (xs, f) => xs.reduce((s, o) => s + f(o), 0);
+  return {
+    orders: live.length, cancelled: list.length - live.length,
+    cancelledPaid: list.filter((o) => o.status === 'CANCELLED' && o.payment === 'PAID'),
+    cheese: sum(paid, (o) => o.cheese), plain: sum(paid, (o) => o.plain), coke: sum(paid, (o) => o.coke),
+    parcels: paid.filter((o) => o.parcel).length, parcelMoney: sum(paid, (o) => o.parcelAmount),
+    revenue: sum(paid, (o) => o.total), cash: sum(paid.filter((o) => o.payMethod === 'CASH'), (o) => o.total),
+    upi: sum(paid.filter((o) => o.payMethod === 'UPI'), (o) => o.total),
+    cashN: paid.filter((o) => o.payMethod === 'CASH').length, upiN: paid.filter((o) => o.payMethod === 'UPI').length,
+    unpaid: live.filter((o) => o.payment === 'NOT_PAID'),
+    orderedBurgers: sum(live, (o) => o.cheese + o.plain),
+  };
+}
+const tile = (label, value, color, sub) => `<div class="tile" style="--c:${color}"><span>${label}</span><b>${value}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+
 function render() {
   const all = [...orders.values()];
-  const cnt = (f) => all.filter(f).length;
-  const unpaid = all.filter((o) => o.payment === 'NOT_PAID');
-  const revenue = all.filter((o) => o.payment === 'PAID').reduce((s, o) => s + o.total, 0);
-  const sum = (list) => list.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain }), { c: 0, p: 0 });
-  const items = sum(all), sold = sum(all.filter((o) => o.payment === 'PAID'));
-  $('stats').innerHTML = [
-    ['🍔 Burgers sold (paid)', sold.c + sold.p, '#b45309', `🧀 ${sold.c} with cheese · ${sold.p} without`],
-    ['Total orders', all.length, '#1c1917', `${items.c + items.p} burgers ordered`],
-    ['New', cnt((o) => o.status === 'NEW'), 'var(--new)'],
-    ['Preparing', cnt((o) => o.status === 'PREPARING'), 'var(--prep)'],
-    ['Ready', cnt((o) => o.status === 'READY'), 'var(--ready)'],
-    ['Delivered', cnt((o) => o.status === 'DELIVERED'), 'var(--done)'],
-    ['Pending payments', unpaid.length, 'var(--unpaid)', rupee(unpaid.reduce((s, o) => s + o.total, 0))],
-    ['Revenue (paid)', rupee(revenue), 'var(--paid)'],
-  ].map(([l, v, c, s]) => `<div class="stat" style="border-left-color:${c}"><span>${l}</span><b>${v}</b>${s ? `<small>${s}</small>` : ''}</div>`).join('');
+  const s = stats(all);
+  $('money').innerHTML = [
+    tile('Revenue (paid)', rupee(s.revenue), 'var(--paid)', `${s.cashN + s.upiN} paid orders · avg ${rupee(s.cashN + s.upiN ? s.revenue / (s.cashN + s.upiN) : 0)}`),
+    tile('💵 Cash', rupee(s.cash), 'var(--paid)', `${s.cashN} orders`),
+    tile('📱 UPI', rupee(s.upi), 'var(--upi)', `${s.upiN} orders`),
+    tile('⏳ Unpaid', s.unpaid.length, 'var(--unpaid)', rupee(s.unpaid.reduce((a, o) => a + o.total, 0)) + (s.unpaid.length ? ' · ' + s.unpaid.map((o) => '#' + o.token).join(' ') : '')),
+    tile('🛍️ Parcel charges', rupee(s.parcelMoney), 'var(--bun)', `${s.parcels} parcel orders`),
+    tile('Cancelled', s.cancelled, 'var(--cancel)', s.cancelledPaid.length ? `⚠️ ${s.cancelledPaid.length} were paid — refund ${rupee(s.cancelledPaid.reduce((a, o) => a + o.total, 0))}` : ''),
+  ].join('');
+  $('sold').innerHTML = [
+    tile('🍔 Burgers sold', s.cheese + s.plain, '#b45309', `${s.orderedBurgers} ordered incl. unpaid`),
+    tile(`🧀 ${settings.cheeseName}`, s.cheese, 'var(--bun)', rupee(s.cheese * settings.cheesePrice) + ' at today\'s price'),
+    tile(settings.plainName, s.plain, '#a16207', rupee(s.plain * settings.plainPrice) + ' at today\'s price'),
+    tile(`🥤 ${settings.cokeName}`, s.coke, '#0f172a'),
+    tile('🛍️ Parcels', s.parcels, 'var(--bun)', `${s.orders - s.parcels} dine-in`),
+    tile('Orders', s.orders, '#1c1917', `${s.cancelled} cancelled`),
+  ].join('');
+  paintStaff(); paintPipe(); paintTable();
+}
+function paintStaff() {
+  const all = [...orders.values()].filter((o) => o.status !== 'CANCELLED');
+  const seen = Object.fromEntries(staff.map((x) => [x.role, x]));
+  const since = (role) => {
+    const x = seen[role];
+    if (!x) return { on: false, txt: 'No PIN set — set it in Settings' };
+    if (x.locked) return { on: false, txt: '🔒 Locked (wrong PINs) — reset PIN in Settings' };
+    if (!x.lastSeen) return { on: false, txt: 'Never opened' };
+    const sec = Math.round((staffNow - new Date(x.lastSeen)) / 1000);
+    return sec < 15 ? { on: true, txt: '● Online' } : { on: false, txt: `Offline · last seen ${sec < 120 ? sec + 's' : Math.round(sec / 60) + ' min'} ago` };
+  };
+  const cook = all.filter((o) => o.status === 'NEW' || o.status === 'PREPARING');
+  const made = all.filter((o) => o.readyAt);
+  const waitDel = all.filter((o) => o.status === 'READY');
+  const deliv = all.filter((o) => o.status === 'DELIVERED');
+  const card = (role, name, nums) => { const st = since(role);
+    return `<div class="who ${st.on ? 'on' : 'off'}"><div class="h">${name}<span class="st">${st.txt}</span></div><div class="nums">${nums.map(([l, v]) => `<div><b>${v}</b>${l}</div>`).join('')}</div></div>`; };
+  $('staff').innerHTML =
+    card('intake', '🧾 Intake', [['orders taken', all.length], ['unpaid', all.filter((o) => o.payment === 'NOT_PAID').length], ['last order', all.length ? hhmm(all[all.length - 1].createdAt) : '—']]) +
+    card('kitchen', '👨‍🍳 Kitchen', [['cooking now', cook.length], ['tokens made', made.length], ['avg time', fmtMin(avg(made.map((o) => minsBetween(o.createdAt, o.readyAt))))]]) +
+    card('delivery', '🛎️ Delivery', [['waiting', waitDel.length], ['delivered', deliv.length], ['avg wait', fmtMin(avg(deliv.map((o) => minsBetween(o.readyAt, o.deliveredAt))))]]);
+}
+function paintPipe() {
+  const all = [...orders.values()];
+  const now = Date.now();
+  const chip = (o, since, lateAfter) => { const m = Math.floor((now - new Date(since)) / 60000);
+    return `<span class="chip ${m >= lateAfter ? 'late' : ''}">#${o.token}<small>${o.cheese + o.plain}🍔${o.coke ? ' ' + o.coke + '🥤' : ''}${o.parcel ? ' 🛍️' : ''} · ${m}m</small></span>`; };
+  const cook = all.filter((o) => o.status === 'NEW' || o.status === 'PREPARING');
+  const ready = all.filter((o) => o.status === 'READY');
+  const done = all.filter((o) => o.status === 'DELIVERED').sort((a, b) => new Date(b.deliveredAt) - new Date(a.deliveredAt)).slice(0, 12);
+  $('pipe').innerHTML =
+    `<div class="col" style="--c:var(--prep)"><h3>👨‍🍳 In the kitchen <span>${cook.length}</span></h3>${cook.map((o) => chip(o, o.createdAt, 12)).join('') || '<small style="color:var(--mute)">Nothing cooking</small>'}</div>` +
+    `<div class="col" style="--c:var(--ready)"><h3>🛎️ Ready — waiting for delivery <span>${ready.length}</span></h3>${ready.map((o) => chip(o, o.readyAt, 4)).join('') || '<small style="color:var(--mute)">Nothing waiting</small>'}</div>` +
+    `<div class="col" style="--c:var(--done)"><h3>✅ Delivered (latest) <span>${all.filter((o) => o.status === 'DELIVERED').length}</span></h3>${done.map((o) => `<span class="chip">#${o.token}<small>${hhmm(o.deliveredAt)}</small></span>`).join('') || '<small style="color:var(--mute)">None yet</small>'}</div>`;
+}
 
-  $('chips').innerHTML = FILTERS.map(([k, l, f]) => `<button class="chip ${filter === k ? 'on' : ''}" data-f="${k}">${l}<i>${cnt(f)}</i></button>`).join('');
-  $('chips').querySelectorAll('.chip').forEach((b) => b.onclick = () => { filter = b.dataset.f; render(); });
-
+const FILTERS = [
+  ['ALL', 'All', () => true], ['KITCHEN', 'In kitchen', (o) => o.status === 'NEW' || o.status === 'PREPARING'],
+  ['READY', 'Ready', (o) => o.status === 'READY'], ['DELIVERED', 'Delivered', (o) => o.status === 'DELIVERED'],
+  ['UNPAID', 'Unpaid', (o) => o.payment === 'NOT_PAID' && o.status !== 'CANCELLED'], ['PARCEL', 'Parcel', (o) => o.parcel && o.status !== 'CANCELLED'],
+  ['CANCELLED', 'Cancelled', (o) => o.status === 'CANCELLED'],
+];
+function paintTable() {
+  const all = [...orders.values()];
+  $('chips').innerHTML = FILTERS.map(([k, l, f]) => `<button class="fchip ${filter === k ? 'on' : ''}" data-f="${k}">${l}<i>${all.filter(f).length}</i></button>`).join('');
+  $('chips').querySelectorAll('.fchip').forEach((b) => (b.onclick = () => { filter = b.dataset.f; paintTable(); }));
   const q = $('search').value.replace(/\D/g, '');
   const fn = FILTERS.find((f) => f[0] === filter)[2];
-  const list = all.filter((o) => (q ? String(o.token).startsWith(q) : fn(o))).sort((a, b) => b.token - a.token); // newest first
-  $('grid').innerHTML = list.length ? list.map(card).join('') : `<div class="empty">No orders here${q ? ' for #' + q : ''}.</div>`;
-  flashIds.clear();
+  const list = all.filter((o) => (q ? String(o.token).startsWith(q) : fn(o))).sort((a, b) => b.token - a.token);
+  $('rows').innerHTML = list.map((o) => {
+    const k = minsBetween(o.createdAt, o.readyAt), d = minsBetween(o.readyAt, o.deliveredAt);
+    const pay = o.payment === 'PAID' ? o.payMethod : 'NOT_PAID';
+    return `<tr class="${o.status}">
+      <td class="tok keep">#${o.token}</td><td>${hhmm(o.createdAt)}</td>
+      <td class="n">${o.cheese || ''}</td><td class="n">${o.plain || ''}</td><td class="n">${o.coke || ''}</td>
+      <td class="n">${o.parcel ? rupee(o.parcelAmount) : ''}</td><td class="n"><b>${rupee(o.total)}</b></td>
+      <td class="keep"><span class="pill p-${pay}">${pay === 'NOT_PAID' ? 'NOT PAID' : pay}</span></td>
+      <td class="keep"><span class="pill s-${o.status}">${o.status === 'PREPARING' ? 'COOKING' : o.status}</span></td>
+      <td class="n ${k > 12 ? 'late' : ''}">${fmtMin(k)}</td><td class="n ${d > 5 ? 'late' : ''}">${fmtMin(d)}</td>
+      <td class="keep"><select class="act" onchange="override('${o.id}',this)"><option value="">…</option>
+        <optgroup label="Payment"><option value="paid_cash">Paid — Cash</option><option value="paid_upi">Paid — UPI</option><option value="unpaid">Not paid</option></optgroup>
+        <optgroup label="Status"><option value="NEW">New</option><option value="PREPARING">Cooking</option><option value="READY">Ready</option><option value="DELIVERED">Delivered</option><option value="CANCELLED">Cancel order</option></optgroup>
+      </select></td></tr>`;
+  }).join('') || `<tr><td colspan="12" style="text-align:center;color:var(--mute);padding:30px">No orders${q ? ' for #' + q : ''}</td></tr>`;
+  const live = list.filter((o) => o.status !== 'CANCELLED');
+  const sum = (f) => live.reduce((a, o) => a + f(o), 0);
+  $('foot').innerHTML = list.length ? `<tr><td>Total</td><td>${live.length} orders</td><td class="n">${sum((o) => o.cheese)}</td><td class="n">${sum((o) => o.plain)}</td><td class="n">${sum((o) => o.coke)}</td><td class="n">${rupee(sum((o) => o.parcelAmount))}</td><td class="n">${rupee(sum((o) => o.total))}</td><td colspan="5" style="color:var(--mute);font-weight:600">totals include unpaid, exclude cancelled</td></tr>` : '';
 }
-function card(o) {
-  const t = new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const ago = Math.max(0, Math.round((Date.now() - new Date(o.createdAt)) / 60000));
-  const lines = [];
-  if (o.cheese) lines.push(`<b>${o.cheese}</b> × ${settings.cheeseName}`);
-  if (o.plain) lines.push(`<b>${o.plain}</b> × ${settings.plainName}`);
-  const btn = (act, cls, label, cur) => `<button class="${cls} ${cur ? 'cur' : ''}" onclick="act('${o.id}','${act}')">${label}</button>`;
-  return `<div class="o ${o.status} ${flashIds.has(o.id) ? 'flash' : ''}" style="--c:${C[o.status]}">
-    <div class="o-head"><div class="o-tok">#${o.token}</div>
-      <div class="o-time">${t}<br>${viewDate === todayStr && o.status !== 'DELIVERED' ? ago + ' min ago' : ''}${pushOn.has(o.id) ? '<br>🔔 push on' : ''}</div></div>
-    <div class="o-items">${lines.join('<br>')}</div>
-    <div class="o-total"><span>${o.totalItems} item${o.totalItems > 1 ? 's' : ''}</span><b>${rupee(o.total)}</b></div>
-    <div class="pills"><span class="pill" style="background:${C[o.payment]}">${o.payment === 'PAID' ? 'PAID' : 'NOT PAID'}</span><span class="pill" style="background:${C[o.status]}">${o.status}</span></div>
-    <div class="acts">
-      ${o.payment === 'PAID' ? btn('unpaid', 'pay b-paid', '✓ PAID (tap to undo)') : btn('paid', 'pay b-unpaid', `MARK PAID · ${rupee(o.total)}`)}
-      ${o.status === 'NEW' ? btn('preparing', 'b-prep', 'PREPARING') : btn('new', 'b-new', '↩ NEW') + btn('preparing', 'b-prep', 'PREPARING', o.status === 'PREPARING')}
-      ${btn('ready', 'b-ready', o.status === 'READY' ? '🔔 NOTIFY AGAIN' : 'READY', o.status === 'READY')}
-      ${btn('delivered', 'b-done', 'DELIVERED', o.status === 'DELIVERED')}
-    </div></div>`;
-}
-async function act(id, action) {
+$('search').oninput = paintTable;
+
+async function override(id, sel) {
+  const v = sel.value; sel.value = '';
+  if (!v) return;
   const o = orders.get(id), now = new Date().toISOString();
-  if (action === 'delivered' && o.payment !== 'PAID' && !confirm(`Token #${o.token} is NOT PAID. Mark delivered anyway?`)) return;
+  if (v === 'CANCELLED' && !confirm(`Cancel token #${o.token}?`)) return;
   const patch = {
-    paid: { payment: 'PAID', paid_at: now }, unpaid: { payment: 'NOT_PAID', paid_at: null },
-    new: { status: 'NEW' }, preparing: { status: 'PREPARING', preparing_at: now },
-    ready: { status: 'READY', ready_at: now }, delivered: { status: 'DELIVERED', delivered_at: now },
-  }[action];
+    paid_cash: { payment: 'PAID', pay_method: 'CASH', paid_at: now }, paid_upi: { payment: 'PAID', pay_method: 'UPI', paid_at: now },
+    unpaid: { payment: 'NOT_PAID', pay_method: null, paid_at: null },
+    NEW: { status: 'NEW', ready_at: null, delivered_at: null, cancelled_at: null },
+    PREPARING: { status: 'PREPARING', preparing_at: now, ready_at: null, delivered_at: null, cancelled_at: null },
+    READY: { status: 'READY', ready_at: o.readyAt || now, delivered_at: null, cancelled_at: null },
+    DELIVERED: { status: 'DELIVERED', ready_at: o.readyAt || now, delivered_at: now, cancelled_at: null },
+    CANCELLED: { status: 'CANCELLED', cancelled_at: now },
+  }[v];
   const { data, error } = await sb.from('orders').update(patch).eq('id', id).select().single();
   if (error) return toast(error.message);
-  orders.set(id, norm(data)); render();
-  if (action === 'ready') {
-    beep();
-    const r = await sb.functions.invoke('notify-ready', { body: { order_id: id, site_url: SITE } });
-    let why = '';
-    if (r.error) { try { why = (await r.error.context.json()).error; } catch { why = r.error.message; } }
-    toast(`#${o.token} READY — ` + (r.error ? `screen updated, push failed (${why})`
-      : r.data.sent ? `🔔 alert sent to ${r.data.sent} phone(s)` : (r.data.failed && r.data.failed.length) ? `screen updated, phone refused the alert (code ${r.data.failed.join(', ')})` : 'shown on customer screen (no phone turned on alerts for this order)'));
-  }
+  orders.set(id, norm(data)); render(); toast(`#${o.token} updated`);
 }
-$('search').oninput = render;
-setInterval(() => viewDate === todayStr && render(), 60000); // refresh "min ago"
+
+// ---------- CSV ----------
+$('csvBtn').onclick = () => {
+  const head = ['token', 'date', 'time', 'cheese', 'no_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
+  const t = (x) => (x ? new Date(x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+  const r1 = (x) => (x == null ? '' : Math.round(x * 10) / 10);
+  const rows = [...orders.values()].sort((a, b) => a.token - b.token).map((o) => [o.token, o.day, t(o.createdAt), o.cheese, o.plain, o.coke, o.parcel ? 'yes' : 'no', o.parcelAmount, o.total,
+    o.payment, o.payMethod || '', o.status, t(o.createdAt), t(o.readyAt), t(o.deliveredAt), r1(minsBetween(o.createdAt, o.readyAt)), r1(minsBetween(o.readyAt, o.deliveredAt))]);
+  const csv = [head, ...rows].map((r) => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `burger-bytes-${viewDate}.csv`; a.click();
+};
 
 // ---------- modals ----------
 function closeM() { document.querySelectorAll('.modal').forEach((m) => m.classList.remove('show')); }
-document.querySelectorAll('.modal').forEach((m) => m.onclick = (e) => e.target === m && closeM());
-$('qrBtn').onclick = () => {
-  const qr = qrcode(0, 'M'); qr.addData(SITE); qr.make();
-  $('qrBox').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
-  $('mQR').classList.add('show');
-};
-$('qrPrint').onclick = () => {
-  const w = window.open('', '_blank');
-  w.document.write(`<html><body style="font-family:sans-serif;text-align:center;padding:40px"><img src="${SITE}logo.png" alt="${settings.stallName}" style="width:300px"><p style="font-size:32px;font-weight:800;margin:6px 0 18px">🍔 Scan to order</p><div style="width:420px;margin:0 auto">${$('qrBox').innerHTML}</div><p style="font-size:18px">${SITE}</p><script>setTimeout(()=>print(),300)<\/script></body></html>`);
-  w.document.close();
-};
+document.querySelectorAll('.modal').forEach((m) => (m.onclick = (e) => e.target === m && closeM()));
 $('setBtn').onclick = () => {
-  $('sName').value = settings.stallName; $('sCN').value = settings.cheeseName; $('sCP').value = settings.cheesePrice;
-  $('sPN').value = settings.plainName; $('sPP').value = settings.plainPrice; $('sPw').value = '';
+  $('sName').value = settings.stallName;
+  $('sCN').value = settings.cheeseName; $('sCP').value = settings.cheesePrice;
+  $('sPN').value = settings.plainName; $('sPP').value = settings.plainPrice;
+  $('sKN').value = settings.cokeName; $('sKP').value = settings.cokePrice;
+  $('sParcel').value = settings.parcelCharge;
+  document.querySelectorAll('input[name=pm]').forEach((r) => (r.checked = r.value === settings.parcelMode));
+  ['pinI', 'pinK', 'pinD', 'sPw'].forEach((id) => ($(id).value = ''));
   $('mSet').classList.add('show');
 };
 $('sSave').onclick = async () => {
+  const num = (id) => Math.max(0, Number($(id).value) || 0);
   const ok = await saveSettings({
     stall_name: $('sName').value.trim() || settings.stallName,
-    cheese_name: $('sCN').value.trim() || settings.cheeseName, cheese_price: Math.max(0, Number($('sCP').value) || 0),
-    plain_name: $('sPN').value.trim() || settings.plainName, plain_price: Math.max(0, Number($('sPP').value) || 0),
+    cheese_name: $('sCN').value.trim() || settings.cheeseName, cheese_price: num('sCP'),
+    plain_name: $('sPN').value.trim() || settings.plainName, plain_price: num('sPP'),
+    coke_name: $('sKN').value.trim() || settings.cokeName, coke_price: num('sKP'),
+    parcel_charge: num('sParcel'), parcel_mode: (document.querySelector('input[name=pm]:checked') || {}).value || 'order',
   });
   if (!ok) return;
-  if ($('sPw').value) {
-    const { error } = await sb.auth.updateUser({ password: $('sPw').value });
-    if (error) return toast('Saved, but password: ' + error.message);
+  for (const [id, role] of [['pinI', 'intake'], ['pinK', 'kitchen'], ['pinD', 'delivery']]) {
+    const p = $(id).value.trim(); if (!p) continue;
+    const { error } = await sb.rpc('admin_set_pin', { p_role: role, p_pin: p });
+    if (error) return toast(`${role} PIN: ${error.message}`);
   }
-  closeM(); toast('Saved');
+  if ($('sPw').value) { const { error } = await sb.auth.updateUser({ password: $('sPw').value }); if (error) return toast('Saved, but password: ' + error.message); }
+  closeM(); toast('Saved'); loadStaff();
 };
 $('resetBtn').onclick = async () => {
-  const n = orders.size, label = viewDate === todayStr ? `today (${viewDate})` : viewDate;
-  const typed = prompt(`This permanently deletes all ${n} order(s) for ${label}, clears its revenue, and restarts tokens at #1.\n\nType RESET to confirm.`);
+  const typed = prompt(`This permanently deletes ALL ${orders.size} order(s) for ${viewDate} and restarts tokens at #1.\n\nType RESET to confirm.`);
   if (typed === null) return;
   if (typed.trim().toUpperCase() !== 'RESET') return toast('Not reset — you must type RESET');
   const { data, error } = await sb.rpc('admin_reset_day', { p_day: viewDate });
-  if (error) return toast(error.message.includes('admin_reset_day') ? 'Run the new reset SQL in Supabase first' : error.message);
+  if (error) return toast(error.message);
   await load(viewDate); toast(`Reset done — ${data} order(s) deleted`);
 };
 $('histBtn').onclick = async () => {
-  $('hBody').innerHTML = '<tr><td colspan=5>Loading…</td></tr>'; $('mHist').classList.add('show');
+  $('hBody').innerHTML = '<tr><td colspan="11">Loading…</td></tr>'; $('mHist').classList.add('show');
   const rows = [];
-  for (let from = 0; ; from += 1000) { // read every order, 1000 at a time
-    const { data, error } = await sb.from('orders').select('day, cheese, plain, payment, total').order('day', { ascending: false }).range(from, from + 999);
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('orders').select('*').order('day', { ascending: false }).range(from, from + 999);
     if (error) return toast(error.message);
-    rows.push(...data);
-    if (data.length < 1000) break;
+    rows.push(...data.map(norm)); if (data.length < 1000) break;
   }
-  const days = new Map(), all = { orders: 0, c: 0, p: 0, revenue: 0 };
-  for (const r of rows) {
-    const d = days.get(r.day) || { orders: 0, c: 0, p: 0, revenue: 0 };
-    d.orders++; all.orders++;
-    if (r.payment === 'PAID') { d.c += r.cheese; d.p += r.plain; d.revenue += Number(r.total); all.c += r.cheese; all.p += r.plain; all.revenue += Number(r.total); }
-    days.set(r.day, d);
-  }
-  const line = (label, d, bold) => `<tr${bold ? ' style="font-weight:800;background:#fafaf9"' : ''}><td>${label}</td><td>${d.orders}</td><td>${d.c + d.p}</td><td>${d.c} / ${d.p}</td><td>${rupee(d.revenue)}</td></tr>`;
-  $('hBody').innerHTML = rows.length
-    ? line('All time', all, true) + [...days].map(([day, d]) => line(`<a onclick="closeM();load('${day}')">${day}</a>`, d)).join('')
-    : '<tr><td colspan=5>No orders yet</td></tr>';
+  const byDay = new Map();
+  for (const o of rows) { if (!byDay.has(o.day)) byDay.set(o.day, []); byDay.get(o.day).push(o); }
+  const line = (label, list, bold) => { const s = stats(list);
+    return `<tr${bold ? ' style="font-weight:900;background:#fafaf9"' : ''}><td>${label}</td><td class="n">${s.orders}</td><td class="n">${s.cancelled}</td><td class="n">${s.cheese + s.plain}</td><td class="n">${s.cheese} / ${s.plain}</td><td class="n">${s.coke}</td><td class="n">${s.parcels}</td><td class="n">${rupee(s.cash)}</td><td class="n">${rupee(s.upi)}</td><td class="n"><b>${rupee(s.revenue)}</b></td><td class="n">${s.unpaid.length ? rupee(s.unpaid.reduce((a, o) => a + o.total, 0)) : ''}</td></tr>`; };
+  $('hBody').innerHTML = rows.length ? line('All time', rows, true) + [...byDay].map(([d, l]) => line(`<a href="#" onclick="closeM();load('${d}');return false">${d}</a>`, l)).join('') : '<tr><td colspan="11">No orders yet</td></tr>';
 };
 
 start().catch((e) => showLogin(e.message));

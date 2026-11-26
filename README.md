@@ -1,62 +1,49 @@
 <p align="center"><img src="logo.png" alt="Burger Bytes" width="180"></p>
 
-# 🍔 Burger Bytes — QR ordering & token manager
+# 🍔 Burger Bytes: counter, kitchen & delivery system
 
-The customer scans a QR code and orders **Chicken Burger with Cheese (₹120)** and/or **without cheese (₹100)**.
-They get a **token number, the total to pay and the item count**. The token manager marks **PAID → PREPARING → READY → DELIVERED**.
-On READY, the customer's phone shows a full-screen popup and gets a push notification.
+There are three staff screens, linked live, and an owner dashboard. **Intake** takes the order and the money and gives a token. **Kitchen** makes it and taps READY. **Delivery** gets an alert and hands it over. **Admin** watches everything.
 
-## 🔗 Live links
-| | |
-|---|---|
-| 🍔 Customer page (put this in the QR) | https://shavivsoft.github.io/FOOD-STALL/ |
-| 🧑‍🍳 Token manager | https://shavivsoft.github.io/FOOD-STALL/admin.html |
-| 🗄️ Supabase project | https://supabase.com/dashboard/project/vyfbyihamirthdftkfxg |
+## 🔗 Screens
+| Screen | Link | Who |
+|---|---|---|
+| 🏠 Home (pick a screen) | https://shavivsoft.github.io/FOOD-STALL/ | |
+| 🧾 Intake / counter | https://shavivsoft.github.io/FOOD-STALL/intake.html | takes orders + money |
+| 👨‍🍳 Kitchen | https://shavivsoft.github.io/FOOD-STALL/kitchen.html | makes burgers |
+| 🛎️ Delivery | https://shavivsoft.github.io/FOOD-STALL/delivery.html | hands over food |
+| 📊 Admin | https://shavivsoft.github.io/FOOD-STALL/admin.html | owner |
+| 🗄️ Supabase | https://supabase.com/dashboard/project/vyfbyihamirthdftkfxg | database |
 
-It's hosted on GitHub Pages (static), and the data is in Supabase (free plan).
+## How a token moves
+1. **Intake** taps the items (🧀 With cheese / No cheese / 🥤 Diet Coke), turns 🛍️ **Parcel** on or off, and picks **Cash / UPI / Pay later**. Then **PLACE ORDER** shows a giant token number to tell the customer.
+2. **Kitchen** gets a beep. Token cards show oldest first, with big item counts, a PARCEL tag and minutes waiting (orange after 7 min, red after 12). The cook taps **✅ READY**. *START* is optional.
+3. **Delivery** gets a loud beep, a vibration and a full-screen **"READY — DELIVER NOW #12"**. They tap **✅ DELIVERED** once it's handed over. No prices are shown here: money is handled only at intake.
+4. If intake **cancels** a token, the kitchen (or delivery) gets a red **"CANCELLED — DO NOT MAKE"** screen.
+5. Every screen has **undo** for mis-taps. Admin can change any token from the **Change** menu.
 
-## ✅ Setup status
-- [x] Code pushed to GitHub
-- [x] Supabase project URL set in `config.js`
-- [x] GitHub Pages turned on (Settings → Pages → `main` / root)
-- [x] Supabase publishable key (`sb_publishable_…`) added to `config.js`
-- [x] `supabase/setup.sql` run in the Supabase SQL Editor
-- [x] Admin user created and email added to `admins` (STEP 2 in setup.sql)
-- [ ] Push notifications: `update-push-and-closed.sql` run + `notify-ready` function deployed (Verify JWT off)
+## Admin dashboard
+- **Staff screens:** whether each screen is online, plus orders taken, cooking now, tokens made, average kitchen time, waiting for delivery, delivered and average delivery wait.
+- **Money:** paid revenue, 💵 cash vs 📱 UPI, unpaid tokens, parcel charges, and cancelled orders. Paid-then-cancelled orders are flagged for a refund.
+- **Sold:** 🍔 burgers sold split by type, 🥤 Diet Cokes, 🛍️ parcels and orders. *Sold* means paid and not cancelled.
+- **Right now:** tokens in the kitchen, ready and waiting, and recently delivered.
+- **Every token:** a table with items, parcel, amount, payment method, status, kitchen minutes and delivery minutes, filters, totals and **⬇ CSV** export.
+- **History:** each day's numbers plus an all-time total.
+- **🟢 OPEN / 🔴 CLOSED** switch. When closed, intake can't take orders, but kitchen and delivery can finish open tokens.
+- **Settings:** item names and prices, the Diet Coke price, parcel charge (**once per order** or **per burger**), the **staff PINs** and your password.
+- **Reset day** deletes a day's orders (for clearing test orders). You must type RESET.
 
-## One-time setup
+## Setup (already done, except the latest update)
+1. Supabase **SQL Editor**: run these files in order. Each one is safe to run again.
+   - [`supabase/setup.sql`](supabase/setup.sql)
+   - [`supabase/update-push-and-closed.sql`](supabase/update-push-and-closed.sql)
+   - [`supabase/update-3-staff.sql`](supabase/update-3-staff.sql) adds Diet Coke, parcel, cash/UPI, cancel and staff PINs.
+2. Create an admin login: **Authentication → Users → Add user** (Auto Confirm). Then run `insert into public.admins (email) values (lower('you@example.com'));` and turn off new sign-ups.
+3. Open Admin → **Settings**. Set the prices and the parcel charge, and give each staff screen a **PIN**.
+4. On each device, open its screen and enter its PIN once. It stays logged in until someone taps **Lock**.
 
-### 1. Supabase database
-1. Open Supabase → **SQL Editor** → paste all of [`supabase/setup.sql`](supabase/setup.sql) → **Run**.
-2. Go to **Authentication → Users → Add user → Create new user**. Use your email and a password, and tick *Auto Confirm User*.
-3. In the SQL Editor, run this with your email:
-   ```sql
-   insert into public.admins (email) values (lower('you@example.com')) on conflict do nothing;
-   ```
-4. Go to **Authentication → Sign In / Providers** and turn **off** "Allow new users to sign up".
-
-### 2. Website config
-Edit [`config.js`](config.js): `SUPABASE_URL` is already set. Put the **publishable** key (`sb_publishable_…`, from **Project Settings → API Keys**) in `SUPABASE_ANON_KEY`.
-The publishable key is meant to be public. **Never** put the secret key (`sb_secret_…`) or `service_role` key here.
-
-### 3. Push notifications (alerts the customer's phone even after they close the page)
-1. Go to **SQL Editor** and run [`supabase/update-push-and-closed.sql`](supabase/update-push-and-closed.sql). Fresh installs already have this in `setup.sql`.
-2. Go to **Edge Functions → Deploy a new function → Via Editor**. Name it **`notify-ready`**, paste [`supabase/functions/notify-ready/index.ts`](supabase/functions/notify-ready/index.ts), and deploy.
-3. Open the function's **Details / Settings** and turn **Verify JWT OFF**. The function checks the admin login itself.
-4. Open the admin page. The top bar should say **🔔 Push on**. There are no secrets to paste: the push key pair is created inside Supabase the first time.
-
-### 4. GitHub Pages
-Go to repo **Settings → Pages → Source: Deploy from a branch → `main` / root**.
-
-## Using it
-- Open `admin.html` and log in. Use **QR code → Print** to make the poster for the counter.
-- **🟢 OPEN / 🔴 WE'RE CLOSED** (top bar) switches the customer page to a big "We're closed" screen and blocks new orders. Phones that already have the page open switch within ~15 seconds. **Settings** changes names and prices; new prices only apply to new orders.
-- **🍔 Burgers sold** (first tile) counts burgers in **paid** orders for the day, split into with cheese and without. The Total orders tile shows everything ordered, including unpaid.
-- Tokens restart at #1 every day (India time) and never repeat within a day. **History** shows each day's orders, burgers sold (cheese / plain) and paid revenue, plus an **All time** total.
-- Tapping READY again on a ready order sends the notification again.
-- **Reset day** (top bar) permanently deletes all orders for the day you're viewing and restarts tokens at #1. You have to type RESET to confirm. Use it to clear test orders.
-- **Notifications:** when a customer taps **Place order**, the phone asks to allow notifications. If they allow it, tapping READY makes their phone alert them, even if they've closed the page.
-  - **Android (Chrome):** works straight away.
-  - **iPhone:** Apple only allows it for sites added to the Home Screen (iOS 16.4+). The page tells iPhone users to tap Share → Add to Home Screen, open **Burgers** from there and order inside it.
-  - Customers who don't allow notifications still see the READY popup while the page is open.
-- Free Supabase projects pause after **7 days with no activity**. If the stall has a break, open the dashboard once a week or click **Restore** in Supabase before you open.
+## Tips for the stall
+- Keep the kitchen and delivery screens **open and plugged in**. The screen stays awake by itself on most phones and tablets. **Tap once** after opening so the beeps work: browsers block sound until the first tap.
+- Turn the device volume **up** and turn **off** silent/Do Not Disturb on the kitchen and delivery phones.
+- A yellow **"No connection"** bar means that screen is offline. Fix the Wi-Fi or mobile data before trusting it.
+- 8 wrong PINs lock a screen for 5 minutes. Setting a new PIN in Admin → Settings unlocks it at once.
+- Free Supabase projects pause after 7 days with no activity. Open the admin page now and then on off weeks.

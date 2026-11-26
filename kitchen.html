@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1c1917">
+<title>Kitchen · Burger Bytes</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="staff.css?v=1">
+<script src="config.js?v=7"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<script>window.ROLE = 'kitchen';</script>
+<script src="staff.js?v=1"></script>
+<script>
+const fresh = new Set();
+window.onChanges = (next, prev) => {
+  let added = false;
+  for (const o of next) {
+    const was = prev.get(o.id);
+    if (!was && (o.status === 'NEW' || o.status === 'PREPARING')) { added = true; fresh.add(o.id); }
+    if (o.status === 'CANCELLED' && was && was !== 'CANCELLED' && was !== 'DELIVERED') {
+      beepCancel(); flash('cancel', '❌ CANCELLED — DO NOT MAKE', o.token, 'The counter cancelled this order.', 9000);
+    }
+  }
+  if (added) beepNew();
+};
+window.render = () => {
+  const queue = orders.filter((o) => o.status === 'NEW' || o.status === 'PREPARING'); // oldest first
+  const ready = orders.filter((o) => o.status === 'READY');
+  const todo = queue.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain }), { c: 0, p: 0 });
+  $('main').innerHTML = `
+    <div class="summary">
+      <div>Tokens waiting<b>${queue.length}</b></div>
+      <div>🧀 With cheese to make<b>${todo.c}</b></div>
+      <div>No cheese to make<b>${todo.p}</b></div>
+    </div>
+    ${queue.length ? `<div class="cards">${queue.map(card).join('')}</div>` : '<div class="empty">✅ All done — no tokens waiting</div>'}
+    ${ready.length ? `<div class="strip">Ready, waiting for delivery: ${ready.map((o) =>
+      `<span class="chip">#${o.token}<button onclick="undo('${o.id}',${o.token})">undo</button></span>`).join('')}</div>` : ''}`;
+  fresh.clear();
+};
+function card(o) {
+  const m = mins(o.createdAt);
+  return `<div class="tk ${fresh.has(o.id) ? 'fresh' : ''}" style="--c:var(--${o.status === 'NEW' ? 'new' : 'prep'})">
+    <div class="tk-top">
+      <div class="tk-no"><small>TOKEN</small>#${o.token}</div>
+      <div class="tk-age ${ageClass(m)}">${m} min<br><span class="pill s-${o.status}">${o.status === 'NEW' ? 'NEW' : 'COOKING'}</span></div>
+    </div>
+    ${o.parcel ? '<div><span class="parcel">🛍️ PARCEL</span></div>' : ''}
+    ${lines(o)}
+    <div class="${o.status === 'NEW' ? 'row2' : ''}">
+      ${o.status === 'NEW' ? `<button class="big b-prep" onclick="act('${o.id}','preparing')">START</button>` : ''}
+      <button class="big b-ready" onclick="act('${o.id}','ready')">✅ READY</button>
+    </div>
+  </div>`;
+}
+function undo(id, n) { if (confirm(`Move token #${n} back to cooking?`)) act(id, 'unready'); }
+</script>
+</body>
+</html>

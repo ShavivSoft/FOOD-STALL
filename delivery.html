@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1c1917">
+<title>Delivery · Burger Bytes</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="staff.css?v=1">
+<script src="config.js?v=7"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<script>window.ROLE = 'delivery';</script>
+<script src="staff.js?v=1"></script>
+<script>
+// Delivery only hands over food — no prices on this screen (money is handled at the counter).
+const fresh = new Set();
+window.onChanges = (next, prev) => {
+  const nowReady = next.filter((o) => o.status === 'READY' && prev.get(o.id) !== 'READY' && prev.get(o.id) !== 'DELIVERED');
+  for (const o of nowReady) fresh.add(o.id);
+  if (nowReady.length) {
+    beepReady();
+    const o = nowReady[nowReady.length - 1];
+    flash('ready', '🍔 READY — DELIVER NOW', o.token, (o.parcel ? '🛍️ PARCEL · ' : '') + short(o), 5000);
+  }
+  for (const o of next) {
+    if (o.status === 'CANCELLED' && prev.get(o.id) === 'READY') { beepCancel(); flash('cancel', '❌ CANCELLED', o.token, 'Do not hand this over.', 8000); }
+  }
+};
+window.render = () => {
+  const ready = orders.filter((o) => o.status === 'READY').sort((a, b) => new Date(a.readyAt) - new Date(b.readyAt)); // first ready = first out
+  const cooking = orders.filter((o) => o.status === 'NEW' || o.status === 'PREPARING');
+  const done = orders.filter((o) => o.status === 'DELIVERED').sort((a, b) => new Date(b.deliveredAt) - new Date(a.deliveredAt)).slice(0, 6);
+  $('main').innerHTML = `
+    <div class="summary">
+      <div>Ready to deliver<b>${ready.length}</b></div>
+      <div>In the kitchen<b>${cooking.length}</b>${cooking.length ? ' &nbsp;' + cooking.map((o) => '#' + o.token).join(' ') : ''}</div>
+      <div>Delivered today<b>${orders.filter((o) => o.status === 'DELIVERED').length}</b></div>
+    </div>
+    ${ready.length ? `<div class="cards">${ready.map(card).join('')}</div>` : '<div class="empty">Nothing to deliver yet — you\'ll hear a beep when a token is ready</div>'}
+    ${done.length ? `<div class="strip">Just delivered: ${done.map((o) =>
+      `<span class="chip">#${o.token}<button onclick="undo('${o.id}',${o.token})">undo</button></span>`).join('')}</div>` : ''}`;
+  fresh.clear();
+};
+function card(o) {
+  const m = mins(o.readyAt);
+  return `<div class="tk ${fresh.has(o.id) ? 'fresh' : ''}" style="--c:var(--ready)">
+    <div class="tk-top">
+      <div class="tk-no"><small>TOKEN</small>#${o.token}</div>
+      <div class="tk-age ${ageClass(m * 3)}">ready<br>${m} min ago</div>
+    </div>
+    ${o.parcel ? '<div><span class="parcel">🛍️ PARCEL — PACK IT</span></div>' : ''}
+    ${lines(o)}
+    <button class="big b-deliv" onclick="act('${o.id}','delivered')">✅ DELIVERED</button>
+  </div>`;
+}
+function undo(id, n) { if (confirm(`Token #${n} was not delivered? Put it back as READY.`)) act(id, 'undeliver'); }
+</script>
+</body>
+</html>
