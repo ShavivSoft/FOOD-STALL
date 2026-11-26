@@ -8,13 +8,13 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=1">
+<link rel="stylesheet" href="staff.css?v=2">
 <script src="config.js?v=7"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'intake';</script>
-<script src="staff.js?v=1"></script>
+<script src="staff.js?v=2"></script>
 <script>
 const cart = { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null }; // pay: 'CASH' | 'UPI' | 'LATER'
 let search = '', built = false, placing = false;
@@ -43,7 +43,7 @@ function buildLayout() {
       <div class="hint" id="hint"></div>
     </div>
     <div>
-      <div class="listhead"><h2>Today's tokens</h2><span id="mini" style="color:var(--mute);font-weight:700"></span>
+      <div class="listhead"><h2>Open tokens</h2><span id="mini" style="color:var(--mute);font-weight:700"></span>
         <input id="q" type="search" inputmode="numeric" placeholder="Token #"></div>
       <div class="olist" id="list"></div>
     </div>
@@ -102,8 +102,11 @@ function paintList() {
   const C = { NEW: 'var(--new)', PREPARING: 'var(--prep)', READY: 'var(--ready)', DELIVERED: 'var(--done)', CANCELLED: 'var(--cancel)' };
   const live = orders.filter((o) => o.status !== 'CANCELLED');
   const unpaid = live.filter((o) => o.payment === 'NOT_PAID');
-  $('mini').textContent = `${live.length} orders · ${unpaid.length ? unpaid.length + ' unpaid (' + rupee(unpaid.reduce((s, o) => s + Number(o.total), 0)) + ')' : 'all paid'}`;
-  const list = [...orders].reverse().filter((o) => !search || String(o.token).startsWith(search));
+  $('mini').textContent = `${live.length} orders · ${live.filter((o) => o.status === 'DELIVERED').length} delivered · ${unpaid.length ? unpaid.length + ' unpaid (' + rupee(unpaid.reduce((s, o) => s + Number(o.total), 0)) + ')' : 'all paid'}`;
+  // finished tokens leave the list (delivered or cancelled) — except delivered ones still waiting for money.
+  // Searching a token number still finds any token.
+  const active = (o) => (o.status !== 'DELIVERED' && o.status !== 'CANCELLED') || (o.status === 'DELIVERED' && o.payment === 'NOT_PAID');
+  const list = [...orders].reverse().filter((o) => (search ? String(o.token).startsWith(search) : active(o)));
   $('list').innerHTML = list.length ? list.map((o) => `
     <div class="orow ${o.status}" style="--c:${C[o.status]}">
       <div class="no">#${o.token}</div>
@@ -119,7 +122,7 @@ function paintList() {
           ${o.status === 'NEW' || o.status === 'PREPARING' ? `<button class="x" onclick="cancelOrder('${o.id}',${o.token})">Cancel</button>` : ''}
         </div>
       </div>
-    </div>`).join('') : '<div class="empty">No orders yet today</div>';
+    </div>`).join('') : `<div class="empty">${search ? 'No token #' + search : orders.length ? 'All tokens delivered ✅' : 'No orders yet today'}</div>`;
 }
 function unpay(id, n) { if (confirm(`Mark token #${n} as NOT paid?`)) act(id, 'unpaid'); }
 function cancelOrder(id, n) { if (confirm(`Cancel token #${n}? The kitchen will be told to stop.`)) act(id, 'cancel'); }

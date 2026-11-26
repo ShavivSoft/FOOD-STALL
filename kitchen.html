@@ -8,13 +8,13 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=1">
+<link rel="stylesheet" href="staff.css?v=2">
 <script src="config.js?v=7"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'kitchen';</script>
-<script src="staff.js?v=1"></script>
+<script src="staff.js?v=2"></script>
 <script>
 const fresh = new Set();
 window.onChanges = (next, prev) => {
@@ -45,17 +45,14 @@ window.render = () => {
 };
 function card(o) {
   const m = mins(o.createdAt);
-  return `<div class="tk ${fresh.has(o.id) ? 'fresh' : ''}" style="--c:var(--${o.status === 'NEW' ? 'new' : 'prep'})">
+  return `<div class="tk ${fresh.has(o.id) ? 'fresh' : ''}" style="--c:var(--new)">
     <div class="tk-top">
       <div class="tk-no"><small>TOKEN</small>#${o.token}</div>
-      <div class="tk-age ${ageClass(m)}">${m} min<br><span class="pill s-${o.status}">${o.status === 'NEW' ? 'NEW' : 'COOKING'}</span></div>
+      <div class="tk-age ${ageClass(m)}">${m} min</div>
     </div>
     ${o.parcel ? '<div><span class="parcel">🛍️ PARCEL</span></div>' : ''}
     ${lines(o)}
-    <div class="${o.status === 'NEW' ? 'row2' : ''}">
-      ${o.status === 'NEW' ? `<button class="big b-prep" onclick="act('${o.id}','preparing')">START</button>` : ''}
-      <button class="big b-ready" onclick="act('${o.id}','ready')">✅ READY</button>
-    </div>
+    <button class="big b-ready" onclick="act('${o.id}','ready')">✅ READY</button>
   </div>`;
 }
 function undo(id, n) { if (confirm(`Move token #${n} back to cooking?`)) act(id, 'unready'); }
