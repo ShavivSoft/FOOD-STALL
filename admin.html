@@ -450,8 +450,9 @@ $('resetBtn').onclick = async () => {
   if (typed === null) return;
   if (typed.trim().toUpperCase() !== 'RESET') return toast('Not reset — you must type RESET');
   const { data, error } = await sb.rpc('admin_reset_day', { p_day: viewDate });
-  if (error) return toast(error.message);
-  await load(viewDate); toast(`Reset done — ${data} order(s) deleted`);
+  if (error) return alert('Reset failed: ' + error.message + (error.details ? '\n' + error.details : '') + (error.hint ? '\n' + error.hint : ''));
+  await load(viewDate);
+  alert(`Reset done — ${data} order(s) deleted for ${viewDate}. ${orders.size ? '⚠️ ' + orders.size + ' still showing — tell Claude.' : 'Next order will be token #1.'}`);
 };
 $('histBtn').onclick = async () => {
   $('hBody').innerHTML = '<tr><td colspan="11">Loading…</td></tr>'; $('mHist').classList.add('show');
