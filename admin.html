@@ -162,6 +162,15 @@
   <div class="btns"><button onclick="closeM()">Close</button></div>
 </div></div>
 
+<div class="modal" id="mReset"><div class="box">
+  <h2>⚠️ Reset day</h2>
+  <p id="rText" style="font-size:16px"></p>
+  <label>Type <b>RESET</b> to confirm</label>
+  <input type="text" id="rIn" autocomplete="off" autocapitalize="characters" spellcheck="false">
+  <div class="err" id="rErr"></div>
+  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="rGo" style="background:#b91c1c">Delete & reset</button></div>
+</div></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -445,14 +454,20 @@ $('sSave').onclick = async () => {
   if ($('sPw').value) { const { error } = await sb.auth.updateUser({ password: $('sPw').value }); if (error) return toast('Saved, but password: ' + error.message); }
   closeM(); toast('Saved'); loadStaff();
 };
-$('resetBtn').onclick = async () => {
-  const typed = prompt(`This permanently deletes ALL ${orders.size} order(s) for ${viewDate} and restarts tokens at #1.\n\nType RESET to confirm.`);
-  if (typed === null) return;
-  if (typed.trim().toUpperCase() !== 'RESET') return toast('Not reset — you must type RESET');
+$('resetBtn').onclick = () => {
+  $('rText').innerHTML = `This permanently deletes <b>all ${orders.size} order(s)</b> for <b>${viewDate}</b> — every stage (new, cooking, ready, delivered, cancelled) — and clears them from the counter, kitchen and delivery screens. The next order starts at <b>token #1</b>.`;
+  $('rIn').value = ''; $('rErr').textContent = ''; $('rGo').disabled = false;
+  $('mReset').classList.add('show'); setTimeout(() => $('rIn').focus(), 50);
+};
+$('rIn').onkeydown = (e) => e.key === 'Enter' && $('rGo').click();
+$('rGo').onclick = async () => {
+  if ($('rIn').value.trim().toUpperCase() !== 'RESET') return ($('rErr').textContent = 'Type RESET exactly');
+  $('rGo').disabled = true; $('rErr').textContent = 'Resetting…';
   const { data, error } = await sb.rpc('admin_reset_day', { p_day: viewDate });
-  if (error) return alert('Reset failed: ' + error.message + (error.details ? '\n' + error.details : '') + (error.hint ? '\n' + error.hint : ''));
+  if (error) { $('rGo').disabled = false; return ($('rErr').textContent = 'Reset failed: ' + error.message + (error.hint ? ' — ' + error.hint : '')); }
   await load(viewDate);
-  alert(`Reset done — ${data} order(s) deleted for ${viewDate}. ${orders.size ? '⚠️ ' + orders.size + ' still showing — tell Claude.' : 'Next order will be token #1.'}`);
+  if (orders.size) { $('rGo').disabled = false; return ($('rErr').textContent = `Deleted ${data}, but ${orders.size} still showing — screenshot this and send it to Claude.`); }
+  closeM(); toast(`✅ Reset done — ${data} order(s) deleted. Next token is #1.`);
 };
 $('histBtn').onclick = async () => {
   $('hBody').innerHTML = '<tr><td colspan="11">Loading…</td></tr>'; $('mHist').classList.add('show');
