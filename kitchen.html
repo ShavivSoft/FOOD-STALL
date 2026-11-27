@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261127232327">
+<meta name="app-version" content="20261127233444">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,17 +29,26 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=20261127232327">
-<script src="config.js?v=20261127232327"></script>
+<link rel="stylesheet" href="staff.css?v=20261127233444">
+<script src="config.js?v=20261127233444"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'kitchen';</script>
-<script src="staff.js?v=20261127232327"></script>
+<script src="staff.js?v=20261127233444"></script>
 <script>
 const fresh = new Set();
+const sig = (o) => [o.cheese, o.plain, o.extra || 0, o.coke, o.parcel ? 1 : 0].join('/');
+let lastSig = new Map();
 window.onChanges = (next, prev) => {
   let added = false;
+  for (const o of next) { // admin edited the items of a token that is still cooking
+    const was = lastSig.get(o.id);
+    if (was && was !== sig(o) && (o.status === 'NEW' || o.status === 'PREPARING')) {
+      fresh.add(o.id); beepNew();
+      flash('ready', '✏️ ORDER CHANGED', o.token, 'Now: ' + short(o) + (o.parcel ? ' · 🛍️ Parcel' : ''), 9000);
+    }
+  }
   for (const o of next) {
     const was = prev.get(o.id);
     if (!was && (o.status === 'NEW' || o.status === 'PREPARING')) { added = true; fresh.add(o.id); }
@@ -49,7 +58,9 @@ window.onChanges = (next, prev) => {
   }
   if (added) beepNew();
 };
+const _render = () => { lastSig = new Map(orders.map((o) => [o.id, sig(o)])); };
 window.render = () => {
+  _render();
   const queue = orders.filter((o) => o.status === 'NEW' || o.status === 'PREPARING'); // oldest first
   const ready = orders.filter((o) => o.status === 'READY');
   const todo = queue.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain, x: a.x + (o.extra || 0) }), { c: 0, p: 0, x: 0 });

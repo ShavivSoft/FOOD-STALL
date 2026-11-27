@@ -30,6 +30,7 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
 - **Sold:** 🍔 burgers sold split by type, ➕ extra cheese (count + ₹), 🥤 Diet Cokes, 🛍️ parcels and orders. *Sold* means paid and not cancelled.
 - **Right now:** tokens in the kitchen, ready and waiting, and recently delivered.
 - **Every token:** a table with items, parcel, amount, payment method, status, kitchen minutes and delivery minutes, filters, totals and **⬇ CSV** export.
+- **✏️ Edit** on any token adds or removes items (with cheese, without cheese, extra cheese, Diet Coke, parcel). The total is recalculated at the prices that order was charged. If the order was already paid, it tells you to **collect ₹X more** or **give back ₹X**. If the token is still cooking, the kitchen gets an **✏️ ORDER CHANGED** alert and its card updates.
 - **History:** each day's numbers plus an all-time total (saved days included), and a **Saved days** list with a download for each.
 - **🟢 OPEN / 🔴 CLOSED** switch. When closed, intake can't take orders, but kitchen and delivery can finish open tokens.
 - **Settings:** item names and prices, the Diet Coke price, parcel charge (**once per order** or **per burger**), the **staff PINs** and your password.

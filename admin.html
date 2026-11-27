@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261127232327">
+<meta name="app-version" content="20261127233444">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,7 +29,7 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="config.js?v=20261127232327"></script>
+<script src="config.js?v=20261127233444"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#9b3700;--bun:#fdb436;
@@ -177,6 +177,15 @@
   <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="sSave">Save</button></div>
 </div></div>
 
+<div class="modal" id="mEdit"><div class="box">
+  <h2 id="eTitle">Edit token</h2>
+  <div id="eRows"></div>
+  <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:16px"><input type="checkbox" id="eParcel" style="width:22px;height:22px"> 🛍️ Parcel <span id="eParcelAmt" style="color:var(--mute)"></span></label>
+  <div id="eSum" style="margin-top:14px;padding:12px;border-radius:12px;background:#fafaf9;font-size:16px;line-height:1.5"></div>
+  <div class="err" id="eErr"></div>
+  <div class="btns"><button onclick="closeM()">Cancel</button><button class="pri" id="eSave">Save changes</button></div>
+</div></div>
+
 <div class="modal" id="mHist"><div class="box wide">
   <h2>History</h2>
   <p style="margin:-6px 0 10px;color:var(--mute);font-size:13px">Sold = paid orders that weren't cancelled. Tap a date to open that day.</p>
@@ -208,7 +217,8 @@ window.canReload = () => !document.querySelector('.modal.show');
 function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => (el.style.display = 'none'), 2800); }
 const norm = (r) => ({
   id: r.id, token: r.token, day: String(r.day).slice(0, 10), cheese: r.cheese, plain: r.plain, coke: r.coke || 0,
-  extra: r.extra_cheese || 0, extraPrice: Number(r.extra_cheese_price || 0),
+  extra: r.extra_cheese || 0, extraPrice: Number(r.extra_cheese_price || 0), hasExtra: 'extra_cheese' in r,
+  cheesePrice: Number(r.cheese_price || 0), plainPrice: Number(r.plain_price || 0), cokePrice: Number(r.coke_price || 0),
   parcel: r.parcel, parcelAmount: Number(r.parcel_amount || 0), total: Number(r.total),
   payment: r.payment, payMethod: r.pay_method, status: r.status,
   createdAt: r.created_at, readyAt: r.ready_at, deliveredAt: r.delivered_at, cancelledAt: r.cancelled_at,
@@ -408,7 +418,7 @@ function paintTable() {
       <td class="keep"><span class="pill p-${pay}">${pay === 'NOT_PAID' ? 'NOT PAID' : pay}</span></td>
       <td class="keep"><span class="pill s-${o.status}">${o.status === 'PREPARING' ? 'COOKING' : o.status}</span></td>
       <td class="n ${k > 12 ? 'late' : ''}">${fmtMin(k)}</td><td class="n ${d > 5 ? 'late' : ''}">${fmtMin(d)}</td>
-      <td class="keep"><select class="act" onchange="override('${o.id}',this)"><option value="">…</option>
+      <td class="keep"><button class="fchip" style="padding:5px 10px;margin-right:6px" onclick="openEdit('${o.id}')">✏️ Edit</button><select class="act" onchange="override('${o.id}',this)"><option value="">…</option>
         <optgroup label="Payment"><option value="paid_cash">Paid — Cash</option><option value="paid_upi">Paid — UPI</option><option value="unpaid">Not paid</option></optgroup>
         <optgroup label="Status"><option value="NEW">New</option><option value="PREPARING">Cooking</option><option value="READY">Ready</option><option value="DELIVERED">Delivered</option><option value="CANCELLED">Cancel order</option></optgroup>
       </select></td></tr>`;
@@ -438,6 +448,61 @@ async function override(id, sel) {
   orders.set(id, norm(data)); render(); toast(`#${o.token} updated`);
 }
 
+// ---------- edit a placed token: add / remove items, total recalculated ----------
+let edit = null;
+function openEdit(id) {
+  const o = orders.get(id);
+  edit = { o, cheese: o.cheese, plain: o.plain, extra: o.extra, coke: o.coke, parcel: !!o.parcel };
+  $('eTitle').textContent = `Edit token #${o.token}`;
+  $('eParcel').checked = edit.parcel; $('eErr').textContent = '';
+  $('mEdit').classList.add('show'); paintEdit();
+}
+function editPrices(o) { // the prices this order was charged at (today's settings if missing)
+  return { cheese: o.cheesePrice || settings.cheesePrice, plain: o.plainPrice || settings.plainPrice,
+    coke: o.cokePrice || settings.cokePrice, extra: o.extraPrice || settings.extraPrice };
+}
+function editTotal() {
+  const P = editPrices(edit.o), burgers = edit.cheese + edit.plain;
+  const parcelAmt = edit.parcel ? (settings.parcelMode === 'burger' ? burgers * settings.parcelCharge : settings.parcelCharge) : 0;
+  return { parcelAmt, total: edit.cheese * P.cheese + edit.plain * P.plain + edit.coke * P.coke + edit.extra * P.extra + parcelAmt };
+}
+function editStep(k, d) {
+  edit[k] = Math.max(0, Math.min(50, edit[k] + d));
+  edit.extra = Math.min(edit.extra, edit.cheese + edit.plain); // extra cheese only on burgers
+  paintEdit();
+}
+function paintEdit() {
+  const P = editPrices(edit.o);
+  const rows = [['cheese', '🧀 ' + settings.cheeseName, P.cheese], ['plain', settings.plainName, P.plain],
+    ...(edit.o.hasExtra ? [['extra', '➕ Extra cheese', P.extra]] : []), ['coke', '🥤 ' + settings.cokeName, P.coke]];
+  $('eRows').innerHTML = rows.map(([k, n, p]) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f4">
+    <div style="flex:1;font-weight:700">${n}<div style="font-weight:500;color:var(--mute);font-size:13px">${rupee(p)} each</div></div>
+    <button class="fchip" style="width:44px;height:44px;font-size:22px" onclick="editStep('${k}',-1)">−</button>
+    <b style="min-width:34px;text-align:center;font-size:22px">${edit[k]}</b>
+    <button class="fchip on" style="width:44px;height:44px;font-size:22px" onclick="editStep('${k}',1)">+</button></div>`).join('');
+  const { parcelAmt, total } = editTotal(), diff = total - edit.o.total;
+  $('eParcelAmt').textContent = edit.parcel ? `+${rupee(parcelAmt)}` : '';
+  const paid = edit.o.payment === 'PAID';
+  $('eSum').innerHTML = `Old total <b>${rupee(edit.o.total)}</b> → New total <b style="font-size:20px">${rupee(total)}</b>`
+    + (diff === 0 ? '' : paid ? `<br><b style="color:${diff > 0 ? '#b91c1c' : '#15803d'}">${diff > 0 ? `Collect ${rupee(diff)} more from the customer` : `Give back ${rupee(-diff)} to the customer`}</b>`
+      : `<br><span style="color:var(--mute)">Not paid yet — they pay the new total</span>`);
+  $('eSave').disabled = edit.cheese + edit.plain + edit.coke === 0;
+  $('eErr').textContent = $('eSave').disabled ? 'An order needs at least one item — use Cancel order instead.' : '';
+}
+$('eParcel').onchange = (e) => { edit.parcel = e.target.checked; paintEdit(); };
+$('eSave').onclick = async () => {
+  const { parcelAmt, total } = editTotal();
+  const patch = { cheese: edit.cheese, plain: edit.plain, coke: edit.coke, parcel: edit.parcel, parcel_amount: parcelAmt,
+    total_items: edit.cheese + edit.plain + edit.coke, total };
+  if (edit.o.hasExtra) patch.extra_cheese = edit.extra;
+  $('eSave').disabled = true;
+  const { data, error } = await sb.from('orders').update(patch).eq('id', edit.o.id).select().single();
+  $('eSave').disabled = false;
+  if (error) return ($('eErr').textContent = error.message);
+  orders.set(edit.o.id, norm(data)); render(); closeM();
+  toast(`#${edit.o.token} updated — new total ${rupee(total)}`);
+};
+
 // ---------- save report (CSV opens in Excel / Google Sheets) ----------
 function csvDownload(list, name) {
   const head = ['token', 'date', 'time', 'with_cheese', 'without_cheese', 'extra_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
@@ -455,7 +520,7 @@ function csvDownload(list, name) {
 }
 // ---------- modals ----------
 function closeM() { document.querySelectorAll('.modal').forEach((m) => m.classList.remove('show')); }
-document.querySelectorAll('.modal').forEach((m) => (m.onclick = (e) => e.target === m && closeM()));
+document.querySelectorAll('.modal').forEach((m) => (m.onclick = (e) => { if (e.target === m) closeM(); })); // no return value: returning false would block checkboxes inside
 $('setBtn').onclick = () => {
   $('sName').value = settings.stallName;
   $('sCN').value = settings.cheeseName; $('sCP').value = settings.cheesePrice;
