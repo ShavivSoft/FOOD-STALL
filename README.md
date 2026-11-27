@@ -15,10 +15,11 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
 | 🗄️ Supabase | https://supabase.com/dashboard/project/vyfbyihamirthdftkfxg | database |
 
 ## How a token moves
-1. **Intake** taps the items (🧀 With cheese / Without cheese / 🥤 Diet Coke), turns 🛍️ **Parcel** on or off, and picks **💵 Cash** or **📱 UPI**.
+1. **Intake** taps the items (🧀 With cheese / Without cheese / ➕ Extra cheese +₹5 / 🥤 Diet Coke), turns 🛍️ **Parcel** on or off, and picks **💵 Cash** or **📱 UPI**.
    - **Cash:** type what the customer gave, or tap a note button (Exact / ₹500 / ₹2,000…). The screen shows **GIVE BACK ₹X** in green, or **SHORT BY ₹X** in red, in which case the order can't be placed.
+   - **➕ Extra cheese** is per burger: it can't be more than the number of burgers in the order.
    - **PLACE ORDER** shows a giant token number to tell the customer, plus the change to give back.
-2. **Kitchen** gets a beep. Token cards show oldest first, with huge colour blocks (yellow **🧀 WITH CHEESE**, dashed **WITHOUT CHEESE**), a PARCEL tag and minutes waiting (orange after 7 min, red after 12). The cook taps **✅ READY**. *START* is optional.
+2. **Kitchen** gets a beep. Token cards show oldest first, with huge colour blocks (yellow **🧀 WITH CHEESE**, dashed **WITHOUT CHEESE**), a red price-tag label **➕ EXTRA CHEESE ×N**, a PARCEL tag and minutes waiting (orange after 7 min, red after 12). The cook taps **✅ READY**. *START* is optional.
 3. **Delivery** gets a loud beep, a vibration and a full-screen **"READY — DELIVER NOW #12"**. They tap **✅ DELIVERED** once it's handed over. No prices are shown here: money is handled only at intake.
 4. If intake **cancels** a token, the kitchen (or delivery) gets a red **"CANCELLED — DO NOT MAKE"** screen.
 5. Every screen has **undo** for mis-taps. Admin can change any token from the **Change** menu.
@@ -26,7 +27,7 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
 ## Admin dashboard
 - **Staff screens:** whether each screen is online, plus orders taken, cooking now, tokens made, average kitchen time, waiting for delivery, delivered and average delivery wait.
 - **Money:** paid revenue, 💵 cash vs 📱 UPI, unpaid tokens, parcel charges, and cancelled orders. Paid-then-cancelled orders are flagged for a refund.
-- **Sold:** 🍔 burgers sold split by type, 🥤 Diet Cokes, 🛍️ parcels and orders. *Sold* means paid and not cancelled.
+- **Sold:** 🍔 burgers sold split by type, ➕ extra cheese (count + ₹), 🥤 Diet Cokes, 🛍️ parcels and orders. *Sold* means paid and not cancelled.
 - **Right now:** tokens in the kitchen, ready and waiting, and recently delivered.
 - **Every token:** a table with items, parcel, amount, payment method, status, kitchen minutes and delivery minutes, filters, totals and **⬇ CSV** export.
 - **History:** each day's numbers plus an all-time total (saved days included), and a **Saved days** list with a download for each.
@@ -42,6 +43,7 @@ There are three staff screens, linked live, and an owner dashboard. **Intake** t
    - [`supabase/update-push-and-closed.sql`](supabase/update-push-and-closed.sql)
    - [`supabase/update-3-staff.sql`](supabase/update-3-staff.sql) adds Diet Coke, parcel, cash/UPI, cancel and staff PINs.
    - [`supabase/update-4-save.sql`](supabase/update-4-save.sql) adds 💾 Save (kept for future reference) and the admin-only Reset.
+   - [`supabase/update-5-extra-cheese.sql`](supabase/update-5-extra-cheese.sql) adds ➕ Extra cheese (₹5, changeable in Settings).
 2. Create an admin login: **Authentication → Users → Add user** (Auto Confirm). Then run `insert into public.admins (email) values (lower('you@example.com'));` and turn off new sign-ups.
 3. Open Admin → **Settings**. Set the prices and the parcel charge, and give each staff screen a **PIN**.
 4. On each device, open its screen and enter its PIN once. It stays logged in until someone taps **Lock**.

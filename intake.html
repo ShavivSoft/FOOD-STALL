@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261127005556">
+<meta name="app-version" content="20261127140053">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,23 +29,24 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=20261127005556">
-<script src="config.js?v=20261127005556"></script>
+<link rel="stylesheet" href="staff.css?v=20261127140053">
+<script src="config.js?v=20261127140053"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'intake';</script>
-<script src="staff.js?v=20261127005556"></script>
+<script src="staff.js?v=20261127140053"></script>
 <script>
-const cart = { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null, given: 0 }; // pay: 'CASH' | 'UPI'
+const cart = { cheese: 0, plain: 0, coke: 0, extra: 0, parcel: false, pay: null, given: 0 }; // pay: 'CASH' | 'UPI'
 let search = '', built = false, placing = false;
-window.canReload = () => !placing && cart.cheese + cart.plain + cart.coke === 0 && !cart.parcel && !cart.pay && !document.querySelector('.tokenpop');
+window.canReload = () => !placing && cart.cheese + cart.plain + cart.coke + cart.extra === 0 && !cart.parcel && !cart.pay && !document.querySelector('.tokenpop');
 
 function parcelAmount() {
   if (!cart.parcel) return 0;
   return S.parcelMode === 'burger' ? (cart.cheese + cart.plain) * Number(S.parcelCharge) : Number(S.parcelCharge);
 }
-const cartTotal = () => cart.cheese * S.cheesePrice + cart.plain * S.plainPrice + cart.coke * S.cokePrice + parcelAmount();
+const extraPrice = () => Number(S.extraPrice ?? 5);
+const cartTotal = () => cart.cheese * S.cheesePrice + cart.plain * S.plainPrice + cart.coke * S.cokePrice + cart.extra * extraPrice() + parcelAmount();
 
 window.render = () => {
   if (!built) buildLayout();
@@ -86,13 +87,21 @@ function buildLayout() {
   $('place').onclick = place;
   $('q').oninput = (e) => { search = e.target.value.replace(/\D/g, ''); paintList(); };
 }
-function itemRow(k, name, price) {
-  return `<div class="it"><div class="nm">${esc(name)}<small>${rupee(price)}</small></div>
+function itemRow(k, name, price, cls = '') {
+  return `<div class="it ${cls}"><div class="nm">${esc(name)}<small>${rupee(price)}</small></div>
     <button onclick="chg('${k}',-1)">−</button><span class="q">${cart[k]}</span><button class="plus" onclick="chg('${k}',1)">+</button></div>`;
 }
-function chg(k, d) { cart[k] = Math.max(0, Math.min(50, cart[k] + d)); paintBuilder(); }
+function chg(k, d) {
+  cart[k] = Math.max(0, Math.min(50, cart[k] + d));
+  if (k === 'extra' && d > 0 && cart.extra > cart.cheese + cart.plain) { cart.extra = cart.cheese + cart.plain; flashHint('Add a burger first — extra cheese goes on a burger'); }
+  cart.extra = Math.min(cart.extra, cart.cheese + cart.plain); // fewer burgers → fewer extra cheese
+  paintBuilder();
+}
+let hintTimer = null;
+function flashHint(t) { clearTimeout(hintTimer); $('hint').textContent = t; $('hint').style.color = '#b91c1c'; hintTimer = setTimeout(() => { hintTimer = null; $('hint').style.color = ''; paintBuilder(); }, 2500); }
 function paintBuilder() {
-  $('items').innerHTML = itemRow('cheese', S.cheeseName, S.cheesePrice) + itemRow('plain', S.plainName, S.plainPrice) + itemRow('coke', S.cokeName, S.cokePrice);
+  $('items').innerHTML = itemRow('cheese', S.cheeseName, S.cheesePrice) + itemRow('plain', S.plainName, S.plainPrice)
+    + itemRow('extra', '➕ Extra cheese', extraPrice(), 'extra') + itemRow('coke', S.cokeName, S.cokePrice);
   const pa = parcelAmount();
   $('parcelBtn').className = 'tog' + (cart.parcel ? ' on' : '');
   $('parcelBtn').textContent = cart.parcel
@@ -122,21 +131,21 @@ function paintBuilder() {
     : cart.pay === 'CASH' && cart.given < total ? (cart.given ? 'Customer gave less than the total' : 'Type the cash the customer gave') : '';
   $('place').disabled = !!why || placing;
   $('place').textContent = why ? 'PLACE ORDER' : `PLACE ORDER · ${rupee(cartTotal())}`;
-  $('hint').textContent = why;
+  if (!hintTimer) $('hint').textContent = why;
 }
 async function place() {
   if (placing) return;
   placing = true; paintBuilder();
   const { data, error } = await sb.rpc('intake_place', {
-    p_pin: pin, p_cheese: cart.cheese, p_plain: cart.plain, p_coke: cart.coke, p_parcel: cart.parcel,
+    p_pin: pin, p_cheese: cart.cheese, p_plain: cart.plain, p_coke: cart.coke, p_extra: cart.extra, p_parcel: cart.parcel,
     p_method: cart.pay,
   });
   const given = cart.given, change = cart.pay === 'CASH' ? cart.given - cartTotal() : 0;
   placing = false;
-  if (error) { paintBuilder(); return alert('No connection — the order was NOT placed. Try again.'); }
+  if (error) { paintBuilder(); return alert(/schema cache|intake_place/.test(error.message) ? 'Extra cheese needs a quick database update — ask the admin to run update-5-extra-cheese.sql. The order was NOT placed.' : 'No connection — the order was NOT placed. Try again.'); }
   if (!data.ok) { paintBuilder(); return alert(data.error); }
   const o = data.order;
-  Object.assign(cart, { cheese: 0, plain: 0, coke: 0, parcel: false, pay: null, given: 0 }); $('given').value = '';
+  Object.assign(cart, { cheese: 0, plain: 0, coke: 0, extra: 0, parcel: false, pay: null, given: 0 }); $('given').value = '';
   paintBuilder(); poll();
   const pop = document.createElement('div');
   pop.className = 'tokenpop';

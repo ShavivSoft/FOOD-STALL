@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261127005556">
+<meta name="app-version" content="20261127140053">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,7 +29,7 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="config.js?v=20261127005556"></script>
+<script src="config.js?v=20261127140053"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mute:#78716c;--brand:#9b3700;--bun:#fdb436;
@@ -154,7 +154,7 @@
     <h2 class="sec">Every token</h2>
     <div class="tools"><div id="chips" style="display:flex;gap:6px;flex-wrap:wrap"></div><span style="flex:1"></span><input id="search" type="search" inputmode="numeric" placeholder="Token #"></div>
     <div class="tablewrap"><table>
-      <thead><tr><th>Token</th><th>Time</th><th class="n">🧀 With cheese</th><th class="n">Without cheese</th><th class="n">🥤 Coke</th><th class="n">Parcel</th><th class="n">Amount</th><th>Payment</th><th>Status</th><th class="n">Kitchen</th><th class="n">Delivery</th><th>Change</th></tr></thead>
+      <thead><tr><th>Token</th><th>Time</th><th class="n">🧀 With cheese</th><th class="n">Without cheese</th><th class="n">➕ Extra</th><th class="n">🥤 Coke</th><th class="n">Parcel</th><th class="n">Amount</th><th>Payment</th><th>Status</th><th class="n">Kitchen</th><th class="n">Delivery</th><th>Change</th></tr></thead>
       <tbody id="rows"></tbody><tfoot id="foot"></tfoot>
     </table></div>
   </main>
@@ -166,6 +166,7 @@
   <h4>Menu & prices (₹) — changes apply to new orders</h4>
   <div class="row2"><input type="text" id="sCN"><input type="number" id="sCP" min="0"></div>
   <div class="row2" style="margin-top:6px"><input type="text" id="sPN"><input type="number" id="sPP" min="0"></div>
+  <div class="row2" style="margin-top:6px"><input type="text" value="➕ Extra cheese" disabled><input type="number" id="sXP" min="0"></div>
   <div class="row2" style="margin-top:6px"><input type="text" id="sKN"><input type="number" id="sKP" min="0"></div>
   <h4>Parcel charge</h4>
   <div class="row2"><div class="radio"><label><input type="radio" name="pm" value="order"> once per order</label><label><input type="radio" name="pm" value="burger"> per burger</label></div><input type="number" id="sParcel" min="0"></div>
@@ -179,7 +180,7 @@
 <div class="modal" id="mHist"><div class="box wide">
   <h2>History</h2>
   <p style="margin:-6px 0 10px;color:var(--mute);font-size:13px">Sold = paid orders that weren't cancelled. Tap a date to open that day.</p>
-  <div class="tablewrap"><table><thead><tr><th>Date</th><th class="n">Orders</th><th class="n">Cancelled</th><th class="n">🍔 Burgers</th><th class="n">🧀 / plain</th><th class="n">🥤 Coke</th><th class="n">🛍️ Parcels</th><th class="n">Cash</th><th class="n">UPI</th><th class="n">Revenue</th><th class="n">Unpaid</th></tr></thead><tbody id="hBody"></tbody></table></div>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th class="n">Orders</th><th class="n">Cancelled</th><th class="n">🍔 Burgers</th><th class="n">🧀 / plain</th><th class="n">➕ Extra</th><th class="n">🥤 Coke</th><th class="n">🛍️ Parcels</th><th class="n">Cash</th><th class="n">UPI</th><th class="n">Revenue</th><th class="n">Unpaid</th></tr></thead><tbody id="hBody"></tbody></table></div>
   <h4>💾 Saved days (kept for future reference)</h4>
   <div class="tablewrap"><table><thead><tr><th>Day</th><th>Last saved</th><th class="n">Orders</th><th class="n">🍔 Burgers</th><th class="n">🥤 Coke</th><th class="n">Revenue</th><th></th></tr></thead><tbody id="aBody"></tbody></table></div>
   <div class="btns"><button onclick="closeM()">Close</button></div>
@@ -207,13 +208,14 @@ window.canReload = () => !document.querySelector('.modal.show');
 function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => (el.style.display = 'none'), 2800); }
 const norm = (r) => ({
   id: r.id, token: r.token, day: String(r.day).slice(0, 10), cheese: r.cheese, plain: r.plain, coke: r.coke || 0,
+  extra: r.extra_cheese || 0, extraPrice: Number(r.extra_cheese_price || 0),
   parcel: r.parcel, parcelAmount: Number(r.parcel_amount || 0), total: Number(r.total),
   payment: r.payment, payMethod: r.pay_method, status: r.status,
   createdAt: r.created_at, readyAt: r.ready_at, deliveredAt: r.delivered_at, cancelledAt: r.cancelled_at,
 });
 const normS = (s) => ({ stallName: s.stall_name, open: s.is_open, tz: s.tz,
   cheeseName: s.cheese_name, cheesePrice: Number(s.cheese_price), plainName: s.plain_name, plainPrice: Number(s.plain_price),
-  cokeName: s.coke_name || 'Diet Coke', cokePrice: Number(s.coke_price || 0), parcelCharge: Number(s.parcel_charge || 0), parcelMode: s.parcel_mode || 'order' });
+  cokeName: s.coke_name || 'Diet Coke', cokePrice: Number(s.coke_price || 0), extraPrice: Number(s.extra_cheese_price ?? 5), parcelCharge: Number(s.parcel_charge || 0), parcelMode: s.parcel_mode || 'order' });
 const dayIn = (tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Asia/Kolkata' }).format(new Date());
 const minsBetween = (a, b) => (a && b ? (new Date(b) - new Date(a)) / 60000 : null);
 const fmtMin = (m) => (m == null ? '—' : m < 1 ? '<1 min' : Math.round(m) + ' min');
@@ -297,7 +299,7 @@ function paintTop() {
 }
 async function saveSettings(patch) {
   const { data, error } = await sb.from('settings').update(patch).eq('id', 1).select().single();
-  if (error) { toast(error.message.includes('coke') || error.message.includes('parcel') ? 'Run update-3-staff.sql in Supabase first' : error.message); return false; }
+  if (error) { toast(error.message.includes('extra_cheese') ? 'Run update-5-extra-cheese.sql in Supabase first' : error.message.includes('coke') || error.message.includes('parcel') ? 'Run update-3-staff.sql in Supabase first' : error.message); return false; }
   settings = normS(data); paintTop(); render(); return true;
 }
 $('openBtn').onclick = async () => {
@@ -314,6 +316,7 @@ function stats(list) {
     orders: live.length, cancelled: list.length - live.length,
     cancelledPaid: list.filter((o) => o.status === 'CANCELLED' && o.payment === 'PAID'),
     cheese: sum(paid, (o) => o.cheese), plain: sum(paid, (o) => o.plain), coke: sum(paid, (o) => o.coke),
+    extra: sum(paid, (o) => o.extra), extraMoney: sum(paid, (o) => o.extra * o.extraPrice),
     parcels: paid.filter((o) => o.parcel).length, parcelMoney: sum(paid, (o) => o.parcelAmount),
     revenue: sum(paid, (o) => o.total), cash: sum(paid.filter((o) => o.payMethod === 'CASH'), (o) => o.total),
     upi: sum(paid.filter((o) => o.payMethod === 'UPI'), (o) => o.total),
@@ -339,6 +342,7 @@ function render() {
     tile('🍔 Burgers sold', s.cheese + s.plain, '#b45309', `${s.orderedBurgers} ordered incl. unpaid`),
     tile(`🧀 ${settings.cheeseName}`, s.cheese, 'var(--bun)', rupee(s.cheese * settings.cheesePrice) + ' at today\'s price'),
     tile(settings.plainName, s.plain, '#a16207', rupee(s.plain * settings.plainPrice) + ' at today\'s price'),
+    tile('➕ Extra cheese', s.extra, '#dc2626', rupee(s.extraMoney) + ' earned'),
     tile(`🥤 ${settings.cokeName}`, s.coke, '#0f172a'),
     tile('🛍️ Parcels', s.parcels, 'var(--bun)', `${s.orders - s.parcels} dine-in`),
     tile('Orders', s.orders, '#1c1917', `${s.cancelled} cancelled`),
@@ -399,7 +403,7 @@ function paintTable() {
     const pay = o.payment === 'PAID' ? o.payMethod : 'NOT_PAID';
     return `<tr class="${o.status}">
       <td class="tok keep">#${o.token}</td><td>${hhmm(o.createdAt)}</td>
-      <td class="n">${o.cheese || ''}</td><td class="n">${o.plain || ''}</td><td class="n">${o.coke || ''}</td>
+      <td class="n">${o.cheese || ''}</td><td class="n">${o.plain || ''}</td><td class="n">${o.extra || ''}</td><td class="n">${o.coke || ''}</td>
       <td class="n">${o.parcel ? rupee(o.parcelAmount) : ''}</td><td class="n"><b>${rupee(o.total)}</b></td>
       <td class="keep"><span class="pill p-${pay}">${pay === 'NOT_PAID' ? 'NOT PAID' : pay}</span></td>
       <td class="keep"><span class="pill s-${o.status}">${o.status === 'PREPARING' ? 'COOKING' : o.status}</span></td>
@@ -408,10 +412,10 @@ function paintTable() {
         <optgroup label="Payment"><option value="paid_cash">Paid — Cash</option><option value="paid_upi">Paid — UPI</option><option value="unpaid">Not paid</option></optgroup>
         <optgroup label="Status"><option value="NEW">New</option><option value="PREPARING">Cooking</option><option value="READY">Ready</option><option value="DELIVERED">Delivered</option><option value="CANCELLED">Cancel order</option></optgroup>
       </select></td></tr>`;
-  }).join('') || `<tr><td colspan="12" style="text-align:center;color:var(--mute);padding:30px">No orders${q ? ' for #' + q : ''}</td></tr>`;
+  }).join('') || `<tr><td colspan="13" style="text-align:center;color:var(--mute);padding:30px">No orders${q ? ' for #' + q : ''}</td></tr>`;
   const live = list.filter((o) => o.status !== 'CANCELLED');
   const sum = (f) => live.reduce((a, o) => a + f(o), 0);
-  $('foot').innerHTML = list.length ? `<tr><td>Total</td><td>${live.length} orders</td><td class="n">${sum((o) => o.cheese)}</td><td class="n">${sum((o) => o.plain)}</td><td class="n">${sum((o) => o.coke)}</td><td class="n">${rupee(sum((o) => o.parcelAmount))}</td><td class="n">${rupee(sum((o) => o.total))}</td><td colspan="5" style="color:var(--mute);font-weight:600">totals include unpaid, exclude cancelled</td></tr>` : '';
+  $('foot').innerHTML = list.length ? `<tr><td>Total</td><td>${live.length} orders</td><td class="n">${sum((o) => o.cheese)}</td><td class="n">${sum((o) => o.plain)}</td><td class="n">${sum((o) => o.extra)}</td><td class="n">${sum((o) => o.coke)}</td><td class="n">${rupee(sum((o) => o.parcelAmount))}</td><td class="n">${rupee(sum((o) => o.total))}</td><td colspan="5" style="color:var(--mute);font-weight:600">totals include unpaid, exclude cancelled</td></tr>` : '';
 }
 $('search').oninput = paintTable;
 
@@ -436,13 +440,13 @@ async function override(id, sel) {
 
 // ---------- save report (CSV opens in Excel / Google Sheets) ----------
 function csvDownload(list, name) {
-  const head = ['token', 'date', 'time', 'with_cheese', 'without_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
+  const head = ['token', 'date', 'time', 'with_cheese', 'without_cheese', 'extra_cheese', 'diet_coke', 'parcel', 'parcel_charge', 'amount', 'payment', 'method', 'status', 'placed', 'ready', 'delivered', 'kitchen_min', 'delivery_min'];
   const t = (x) => (x ? new Date(x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
   const r1 = (x) => (x == null ? '' : Math.round(x * 10) / 10);
-  const rows = [...list].sort((a, b) => a.token - b.token).map((o) => [o.token, o.day, t(o.createdAt), o.cheese, o.plain, o.coke, o.parcel ? 'yes' : 'no', o.parcelAmount, o.total,
+  const rows = [...list].sort((a, b) => a.token - b.token).map((o) => [o.token, o.day, t(o.createdAt), o.cheese, o.plain, o.extra, o.coke, o.parcel ? 'yes' : 'no', o.parcelAmount, o.total,
     o.payment, o.payMethod || '', o.status, t(o.createdAt), t(o.readyAt), t(o.deliveredAt), r1(minsBetween(o.createdAt, o.readyAt)), r1(minsBetween(o.readyAt, o.deliveredAt))]);
   const s = stats(list);
-  const sum = [[], ['SUMMARY'], ['orders', s.orders], ['cancelled', s.cancelled], ['burgers_sold', s.cheese + s.plain], ['with_cheese', s.cheese], ['without_cheese', s.plain],
+  const sum = [[], ['SUMMARY'], ['orders', s.orders], ['cancelled', s.cancelled], ['burgers_sold', s.cheese + s.plain], ['with_cheese', s.cheese], ['without_cheese', s.plain], ['extra_cheese', s.extra], ['extra_cheese_money', s.extraMoney],
     ['diet_coke', s.coke], ['parcels', s.parcels], ['parcel_charges', s.parcelMoney], ['cash', s.cash], ['upi', s.upi], ['revenue', s.revenue],
     ['unpaid', s.unpaid.reduce((a, o) => a + o.total, 0)]];
   const csv = [head, ...rows, ...sum].map((r) => r.join(',')).join('\n');
@@ -456,7 +460,7 @@ $('setBtn').onclick = () => {
   $('sName').value = settings.stallName;
   $('sCN').value = settings.cheeseName; $('sCP').value = settings.cheesePrice;
   $('sPN').value = settings.plainName; $('sPP').value = settings.plainPrice;
-  $('sKN').value = settings.cokeName; $('sKP').value = settings.cokePrice;
+  $('sKN').value = settings.cokeName; $('sKP').value = settings.cokePrice; $('sXP').value = settings.extraPrice;
   $('sParcel').value = settings.parcelCharge;
   document.querySelectorAll('input[name=pm]').forEach((r) => (r.checked = r.value === settings.parcelMode));
   ['pinI', 'pinK', 'pinD', 'sPw'].forEach((id) => ($(id).value = ''));
@@ -468,7 +472,7 @@ $('sSave').onclick = async () => {
     stall_name: $('sName').value.trim() || settings.stallName,
     cheese_name: $('sCN').value.trim() || settings.cheeseName, cheese_price: num('sCP'),
     plain_name: $('sPN').value.trim() || settings.plainName, plain_price: num('sPP'),
-    coke_name: $('sKN').value.trim() || settings.cokeName, coke_price: num('sKP'),
+    coke_name: $('sKN').value.trim() || settings.cokeName, coke_price: num('sKP'), extra_cheese_price: num('sXP'),
     parcel_charge: num('sParcel'), parcel_mode: (document.querySelector('input[name=pm]:checked') || {}).value || 'order',
   });
   if (!ok) return;
@@ -543,8 +547,8 @@ $('histBtn').onclick = async () => {
   const byDay = new Map();
   for (const o of rows) { if (!byDay.has(o.day)) byDay.set(o.day, []); byDay.get(o.day).push(o); }
   const line = (label, list, bold) => { const s = stats(list);
-    return `<tr${bold ? ' style="font-weight:900;background:#fafaf9"' : ''}><td>${label}</td><td class="n">${s.orders}</td><td class="n">${s.cancelled}</td><td class="n">${s.cheese + s.plain}</td><td class="n">${s.cheese} / ${s.plain}</td><td class="n">${s.coke}</td><td class="n">${s.parcels}</td><td class="n">${rupee(s.cash)}</td><td class="n">${rupee(s.upi)}</td><td class="n"><b>${rupee(s.revenue)}</b></td><td class="n">${s.unpaid.length ? rupee(s.unpaid.reduce((a, o) => a + o.total, 0)) : ''}</td></tr>`; };
-  $('hBody').innerHTML = rows.length ? line('All time', rows, true) + [...byDay].sort((a, b) => b[0].localeCompare(a[0])).map(([d, l]) => line(`<a href="#" onclick="closeM();load('${d}');return false">${d}</a>`, l)).join('') : '<tr><td colspan="11">No orders yet</td></tr>';
+    return `<tr${bold ? ' style="font-weight:900;background:#fafaf9"' : ''}><td>${label}</td><td class="n">${s.orders}</td><td class="n">${s.cancelled}</td><td class="n">${s.cheese + s.plain}</td><td class="n">${s.cheese} / ${s.plain}</td><td class="n">${s.extra}</td><td class="n">${s.coke}</td><td class="n">${s.parcels}</td><td class="n">${rupee(s.cash)}</td><td class="n">${rupee(s.upi)}</td><td class="n"><b>${rupee(s.revenue)}</b></td><td class="n">${s.unpaid.length ? rupee(s.unpaid.reduce((a, o) => a + o.total, 0)) : ''}</td></tr>`; };
+  $('hBody').innerHTML = rows.length ? line('All time', rows, true) + [...byDay].sort((a, b) => b[0].localeCompare(a[0])).map(([d, l]) => line(`<a href="#" onclick="closeM();load('${d}');return false">${d}</a>`, l)).join('') : '<tr><td colspan="12">No orders yet</td></tr>';
   savedDays = new Map();
   for (const o of saved) { if (!savedDays.has(o.day)) savedDays.set(o.day, []); savedDays.get(o.day).push(o); }
   $('aBody').innerHTML = arch.error ? `<tr><td colspan="7" style="color:var(--mute)">Run supabase/update-4-save.sql in Supabase to use 💾 Save.</td></tr>`

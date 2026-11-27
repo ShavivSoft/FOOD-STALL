@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261127005556">
+<meta name="app-version" content="20261127140053">
 <script>
 // Auto-update: if a newer version is on GitHub, reload it (address bar stays clean, e.g. just admin.html).
 (function () {
@@ -29,13 +29,13 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="staff.css?v=20261127005556">
-<script src="config.js?v=20261127005556"></script>
+<link rel="stylesheet" href="staff.css?v=20261127140053">
+<script src="config.js?v=20261127140053"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <script>window.ROLE = 'kitchen';</script>
-<script src="staff.js?v=20261127005556"></script>
+<script src="staff.js?v=20261127140053"></script>
 <script>
 const fresh = new Set();
 window.onChanges = (next, prev) => {
@@ -52,12 +52,13 @@ window.onChanges = (next, prev) => {
 window.render = () => {
   const queue = orders.filter((o) => o.status === 'NEW' || o.status === 'PREPARING'); // oldest first
   const ready = orders.filter((o) => o.status === 'READY');
-  const todo = queue.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain }), { c: 0, p: 0 });
+  const todo = queue.reduce((a, o) => ({ c: a.c + o.cheese, p: a.p + o.plain, x: a.x + (o.extra || 0) }), { c: 0, p: 0, x: 0 });
   $('main').innerHTML = `
     <div class="summary">
       <div>Tokens waiting<b>${queue.length}</b></div>
       <div style="background:#fdb436;color:#422006">🧀 WITH CHEESE to make<b>${todo.c}</b></div>
       <div style="border:3px dashed #1c1917">WITHOUT CHEESE to make<b>${todo.p}</b></div>
+      ${todo.x ? `<div style="background:#dc2626;color:#fff">➕ EXTRA CHEESE<b style="color:#fff">${todo.x}</b></div>` : ''}
     </div>
     ${queue.length ? `<div class="cards">${queue.map(card).join('')}</div>` : '<div class="empty">✅ All done — no tokens waiting</div>'}
     ${ready.length ? `<div class="strip">Ready, waiting for delivery: ${ready.map((o) =>

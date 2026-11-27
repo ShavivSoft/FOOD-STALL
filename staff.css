@@ -123,3 +123,12 @@ main{padding:14px;max-width:1500px;margin:0 auto}
 .change b{font-size:34px}
 .change.ok{background:#16a34a;color:#fff}
 .change.short{background:#dc2626;color:#fff}
+
+/* extra cheese: a price-tag style label */
+.xtag{position:relative;align-self:flex-start;display:inline-flex;align-items:center;gap:10px;padding:10px 20px 10px 40px;
+  background:#dc2626;color:#fff;font-size:26px;font-weight:950;letter-spacing:.02em;border-radius:0 12px 12px 0;
+  clip-path:polygon(22px 0,100% 0,100% 100%,22px 100%,0 50%);filter:drop-shadow(0 3px 0 #7f1d1d)}
+.xtag i{position:absolute;left:18px;top:50%;width:11px;height:11px;margin-top:-5.5px;border-radius:50%;background:#fff}
+.xtag b{font-size:38px;line-height:1}
+.it.extra{background:#fff7ed;border-radius:12px;padding:10px 8px;margin:4px 0}
+.it.extra .nm{color:#b91c1c}

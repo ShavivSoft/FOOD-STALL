@@ -135,6 +135,7 @@ function lines(o, { coke = true } = {}) {
   const L = [];
   if (o.cheese) L.push(`<div class="line ch"><b>${o.cheese}</b><span>🧀 WITH CHEESE</span></div>`);
   if (o.plain) L.push(`<div class="line nc"><b>${o.plain}</b><span>WITHOUT CHEESE</span></div>`);
+  if (o.extra) L.push(`<div class="xtag"><i></i>➕ EXTRA CHEESE <b>×${o.extra}</b></div>`);
   if (coke && o.coke) L.push(`<div class="line coke"><b>${o.coke}×</b>🥤 ${esc((S.cokeName || 'Diet Coke').toUpperCase())}</div>`);
   return `<div class="lines">${L.join('')}</div>`;
 }
@@ -142,6 +143,7 @@ function short(o) {
   const L = [];
   if (o.cheese) L.push(`${o.cheese}× With cheese`);
   if (o.plain) L.push(`${o.plain}× Without cheese`);
+  if (o.extra) L.push(`➕${o.extra} extra cheese`);
   if (o.coke) L.push(`${o.coke}× ${esc(S.cokeName || 'Diet Coke')}`);
   return L.join(' · ');
 }
